@@ -13,6 +13,8 @@ namespace DeskApp;
 /// <summary>
 /// 一键启动模块（二级页面）：模式增删改 + 应用下拉/浏览添加 + 单击启动整组程序。
 /// </summary>
+[ToolModule("quicklaunch", "一键启动", "🚀", "按模式批量启动一组常用软件",
+    Order = 60, Tables = new string[] { "LauncherModes", "LauncherItems" })]
 public partial class QuickLaunchView : UserControl
 {
     public QuickLaunchView()

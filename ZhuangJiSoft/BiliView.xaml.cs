@@ -12,6 +12,8 @@ namespace DeskApp;
 /// B站下载模块（二级页面）：输入单条视频链接解析下载，表格展示进度与结果。
 /// view API + wbi playurl（durl 单文件 MP4）解析，免登录。
 /// </summary>
+[ToolModule("bilibili", "B站下载", "🎥", "按 BV 号下载视频，支持多分 P",
+    Order = 90, Tables = new string[] { "BiliRecords" })]
 public partial class BiliView : UserControl
 {
     public BiliView()

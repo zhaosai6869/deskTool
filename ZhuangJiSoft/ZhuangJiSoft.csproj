@@ -8,6 +8,8 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>DeskApp</AssemblyName>
     <RootNamespace>DeskApp</RootNamespace>
+    <!-- 在线更新以程序集版本与 GitHub Release 标签（vX.Y.Z）比较 -->
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

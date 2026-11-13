@@ -14,6 +14,8 @@ namespace DeskApp;
 /// 不含任何 Ping 相关功能（识别码不是 IP）。
 /// 双击为「免费半自动」：拉起客户端 + 复制识别码，访问密码用右键菜单复制。
 /// </summary>
+[ToolModule("sunflower", "向日葵", "🌻", "保存识别码，快速发起远程协助",
+    Order = 40, Tables = new string[] { "SunflowerRecords" })]
 public partial class SunflowerView : UserControl
 {
     public SunflowerView()

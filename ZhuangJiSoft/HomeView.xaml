@@ -20,26 +20,36 @@
                     HorizontalAlignment="Center" Margin="0,12,0,0"/>
         </StackPanel>
 
-        <ItemsControl Grid.Row="1" ItemsSource="{Binding Tools}"
+        <!-- 模块多了会自动出现滚动条；4 列卡片：图标 + 名称 + 简介 -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
                       HorizontalAlignment="Center" VerticalAlignment="Center">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <UniformGrid Columns="6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <ui:Button Width="118" Height="120" Margin="5" Padding="0"
-                               Appearance="Secondary" Cursor="Hand"
-                               Click="Tool_Click">
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Icon}" FontSize="38" HorizontalAlignment="Center"/>
-                            <ui:TextBlock Text="{Binding Name}" FontSize="13" HorizontalAlignment="Center"
-                                          Margin="0,8,0,0" Foreground="#1F1F1F"/>
-                        </StackPanel>
-                    </ui:Button>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+            <ItemsControl ItemsSource="{Binding Tools}"
+                          HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="4" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Style="{StaticResource ModuleCardButton}" Click="Tool_Click">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="152">
+                                <TextBlock Text="{Binding Icon}" FontSize="30"
+                                           HorizontalAlignment="Center" Foreground="#1F1F1F"/>
+                                <ui:TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                              HorizontalAlignment="Center" Margin="0,6,0,0"
+                                              Foreground="#1F1F1F"/>
+                                <TextBlock Text="{Binding Description}" FontSize="11"
+                                           Foreground="#5A6472" HorizontalAlignment="Center"
+                                           TextAlignment="Center" TextWrapping="Wrap"
+                                           TextTrimming="CharacterEllipsis" MaxHeight="32"
+                                           Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
     </Grid>
 </UserControl>

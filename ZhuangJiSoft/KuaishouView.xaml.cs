@@ -12,6 +12,8 @@ namespace DeskApp;
 /// 快手下载模块（二级页面）：输入单条分享链接解析下载，表格展示进度与结果。
 /// 分享页 INIT_STATE / APOLLO_STATE 协议解析，无需登录。
 /// </summary>
+[ToolModule("kuaishou", "快手下载", "📺", "粘贴分享链接，下载快手作品",
+    Order = 80, Tables = new string[] { "KuaishouRecords" })]
 public partial class KuaishouView : UserControl
 {
     public KuaishouView()

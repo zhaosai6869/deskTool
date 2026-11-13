@@ -8,6 +8,8 @@ namespace DeskApp;
 /// <summary>
 /// 装机软件模块（二级页面）。新增/修改用弹窗 SoftwareEditDialog；去掉了导入/导出/清空/排序。
 /// </summary>
+[ToolModule("software", "装机软件", "🛠", "管理常用软件的安装包与下载链接",
+    Order = 10, Tables = new string[] { "Items" })]
 public partial class SoftwareManagerView : UserControl
 {
     public SoftwareManagerView()

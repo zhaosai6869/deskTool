@@ -12,6 +12,8 @@ namespace DeskApp;
 /// ToDesk 模块（二级页面）。与 Win 远程交互一致：新增/修改弹窗、双击行连接、右键复制；
 /// 不含任何 Ping 相关功能（设备代码不是 IP）。
 /// </summary>
+[ToolModule("todesk", "todesk", "💻", "保存设备代码，快速连接远端",
+    Order = 50, Tables = new string[] { "ToDeskRecords" })]
 public partial class ToDeskView : UserControl
 {
     public ToDeskView()

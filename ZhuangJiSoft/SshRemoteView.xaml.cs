@@ -13,6 +13,8 @@ namespace DeskApp;
 /// 双击行直接连接、Ping 列红绿两态、右键菜单复制/测 Ping、顶部 Ping 值按钮测全部。
 /// 差异：SSH 记录双击打开内嵌终端（含 SFTP 文件管理入口）；FTP 记录双击直接打开文件管理。
 /// </summary>
+[ToolModule("ssh", "ssh远程", "🐧", "SSH / SFTP / FTP 连接、终端与文件管理",
+    Order = 30, Tables = new string[] { "SshRecords" })]
 public partial class SshRemoteView : UserControl
 {
     public SshRemoteView()

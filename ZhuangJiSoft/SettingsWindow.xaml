@@ -7,7 +7,7 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         mc:Ignorable="d"
-        Title="设置" Height="480" Width="720" WindowStartupLocation="Manual" ResizeMode="NoResize"
+        Title="设置" Height="560" Width="760" WindowStartupLocation="Manual" ResizeMode="NoResize"
         ExtendsContentIntoTitleBar="True" WindowBackdropType="Mica">
     <WindowChrome.WindowChrome>
         <shell:WindowChrome GlassFrameThickness="0" CaptionHeight="40"
@@ -38,7 +38,7 @@
             </Button>
         </Grid>
 
-        <!-- 主体：左导航 + 右内容（半透明，让 Mica 透出，与主窗口一致） -->
+        <!-- 主体：左导航 + 右内容 -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="180"/>
@@ -56,8 +56,16 @@
                                        Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
                         </StackPanel>
                     </RadioButton>
-                    <RadioButton x:Name="NavData" Style="{StaticResource NavRadio}" Tag="1"
+                    <RadioButton x:Name="NavModules" Style="{StaticResource NavRadio}" Tag="1"
                                  IsChecked="True" Checked="Nav_Checked">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <ui:SymbolIcon Symbol="Apps24" FontSize="17" Margin="0,0,12,0"
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                            <TextBlock Text="模块管理" FontSize="13" VerticalAlignment="Center"
+                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="NavData" Style="{StaticResource NavRadio}" Tag="2" Checked="Nav_Checked">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <ui:SymbolIcon Symbol="Database24" FontSize="17" Margin="0,0,12,0"
                                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
@@ -65,11 +73,11 @@
                                        Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
                         </StackPanel>
                     </RadioButton>
-                    <RadioButton x:Name="NavAbout" Style="{StaticResource NavRadio}" Tag="2" Checked="Nav_Checked">
+                    <RadioButton x:Name="NavAbout" Style="{StaticResource NavRadio}" Tag="3" Checked="Nav_Checked">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <ui:SymbolIcon Symbol="Info24" FontSize="17" Margin="0,0,12,0"
                                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
-                            <TextBlock Text="关于" FontSize="13" VerticalAlignment="Center"
+                            <TextBlock Text="关于 / 更新" FontSize="13" VerticalAlignment="Center"
                                        Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
                         </StackPanel>
                     </RadioButton>
@@ -77,15 +85,73 @@
             </Border>
 
             <Grid Grid.Column="1">
-                <!-- 常规（占位） -->
+                <!-- 常规 -->
                 <StackPanel x:Name="PanelGeneral" Visibility="Collapsed" Margin="24,20">
                     <TextBlock Text="常规" Style="{StaticResource PanelTitle}"/>
                     <Border Height="1" Background="#E5E9F0" Margin="0,14,0,16"/>
-                    <TextBlock Text="暂无更多设置，敬请期待。" Foreground="#5A6472" FontSize="13"/>
+                    <TextBlock Text="主界面显示哪些功能，请在「模块管理」里勾选。" FontSize="13" Foreground="#5A6472"/>
+                    <TextBlock Text="各模块的数据可在「数据管理」里单独或批量清空。" FontSize="13"
+                               Foreground="#5A6472" Margin="0,8,0,0"/>
+                    <TextBlock Text="以后新增模块会自动出现在上述两处列表中，无需手动登记。" FontSize="13"
+                               Foreground="#5A6472" Margin="0,8,0,0"/>
                 </StackPanel>
 
-                <!-- 数据管理 -->
-                <Grid x:Name="PanelData" Visibility="Visible" Margin="24,20">
+                <!-- 模块管理：全部模块 + 勾选是否上首页 -->
+                <Grid x:Name="PanelModules" Visibility="Visible" Margin="24,20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="模块管理" Style="{StaticResource PanelTitle}"/>
+                    <StackPanel Grid.Row="1">
+                        <Border Height="1" Background="#E5E9F0" Margin="0,14,0,12"/>
+                        <TextBlock Text="勾选后显示在主界面；以后新增的模块会自动出现在这里。"
+                                   FontSize="12" Foreground="#5A6472" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="2" BorderBrush="#D8DEE6" BorderThickness="1" CornerRadius="6"
+                            Background="White" Margin="0,12,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled" Padding="0,2">
+                            <ItemsControl ItemsSource="{Binding ModuleToggles}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="#EDF0F5" BorderThickness="0,0,0,1" Padding="14,9">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding Icon}" FontSize="20"
+                                                           VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontSize="13"
+                                                               FontWeight="SemiBold" Foreground="#1F1F1F"/>
+                                                    <TextBlock Text="{Binding Description}" FontSize="11"
+                                                               Foreground="#5A6472" Margin="0,3,0,0"
+                                                               TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                                <CheckBox Grid.Column="2" Style="{StaticResource ModuleCheckBox}"
+                                                          IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                          VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                          Margin="12,0,0,0" ToolTip="显示在主界面"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+
+                    <TextBlock Grid.Row="3" Text="勾选状态自动保存，关闭设置后立即生效。"
+                               FontSize="11" Foreground="#8A94A3" Margin="0,10,0,0"/>
+                </Grid>
+
+                <!-- 数据管理：全部模块 + 全选 -->
+                <Grid x:Name="PanelData" Visibility="Collapsed" Margin="24,20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -95,22 +161,39 @@
                     <TextBlock Grid.Row="0" Text="数据管理" Style="{StaticResource PanelTitle}"/>
                     <StackPanel Grid.Row="1">
                         <Border Height="1" Background="#E5E9F0" Margin="0,14,0,12"/>
-                        <TextBlock Text="勾选需要清空数据的模块" FontSize="12" Foreground="#5A6472"/>
+                        <Grid>
+                            <TextBlock Text="勾选需要清空数据的模块" FontSize="12" Foreground="#5A6472"
+                                       VerticalAlignment="Center"/>
+                            <CheckBox x:Name="SelectAllBox" Style="{StaticResource ModuleCheckBox}"
+                                      Content="全选" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                      Checked="SelectAll_Changed" Unchecked="SelectAll_Changed"/>
+                        </Grid>
                     </StackPanel>
 
                     <Border Grid.Row="2" BorderBrush="#D8DEE6" BorderThickness="1" CornerRadius="6"
-                            Background="White" VerticalAlignment="Top" Margin="0,12,0,0">
-                        <ItemsControl ItemsSource="{Binding Modules}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="#EDF0F5" BorderThickness="0,0,0,1" Padding="14,12">
-                                        <CheckBox Style="{StaticResource ModuleCheckBox}"
-                                                  IsChecked="{Binding IsChecked}"
-                                                  Content="{Binding Name}"/>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                            Background="White" Margin="0,12,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled" Padding="0,2">
+                            <ItemsControl ItemsSource="{Binding Modules}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="#EDF0F5" BorderThickness="0,0,0,1" Padding="14,10">
+                                            <CheckBox Style="{StaticResource ModuleCheckBox}"
+                                                      IsChecked="{Binding IsChecked, Mode=TwoWay}">
+                                                <CheckBox.Content>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Icon}" FontSize="15"
+                                                                   Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding Name}" FontSize="13"
+                                                                   Foreground="#1F1F1F" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </CheckBox.Content>
+                                            </CheckBox>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
                     </Border>
 
                     <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
@@ -122,14 +205,50 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- 关于（占位） -->
-                <StackPanel x:Name="PanelAbout" Visibility="Collapsed" Margin="24,20">
-                    <TextBlock Text="关于" Style="{StaticResource PanelTitle}"/>
-                    <Border Height="1" Background="#E5E9F0" Margin="0,14,0,16"/>
-                    <TextBlock Text="桌面工具 deskApp" FontWeight="SemiBold" FontSize="14" Foreground="#1F1F1F"/>
-                    <TextBlock Text="版本 1.0.0" Margin="0,8,0,0" Foreground="#5A6472" FontSize="13"/>
-                    <TextBlock Text="装机软件管理与数据维护工具。" Margin="0,4,0,0" Foreground="#5A6472" FontSize="13"/>
-                </StackPanel>
+                <!-- 关于 / 在线更新 -->
+                <Grid x:Name="PanelAbout" Visibility="Collapsed" Margin="24,20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="关于" Style="{StaticResource PanelTitle}"/>
+                    <StackPanel Grid.Row="1">
+                        <Border Height="1" Background="#E5E9F0" Margin="0,14,0,16"/>
+                        <TextBlock Text="桌面工具 deskApp" FontWeight="SemiBold" FontSize="14" Foreground="#1F1F1F"/>
+                        <TextBlock x:Name="VersionText" Text="版本 1.0.0" Margin="0,8,0,0"
+                                   Foreground="#5A6472" FontSize="13"/>
+                        <TextBlock Text="装机软件管理与数据维护工具。" Margin="0,4,0,0"
+                                   Foreground="#5A6472" FontSize="13"/>
+                        <TextBlock Text="更新源：github.com/zhaosai6869/deskTool/releases" Margin="0,4,0,0"
+                                   Foreground="#5A6472" FontSize="12"/>
+                        <TextBlock Text="发布新版本：在 GitHub 创建 Release（标签形如 v1.0.1），并上传包含 DeskApp.exe 与全部依赖文件的 zip 附件。"
+                                   Margin="0,8,0,0" Foreground="#8A94A3" FontSize="11" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,16,0,0">
+                        <ui:Button x:Name="CheckUpdateBtn" Content="检查更新" Appearance="Secondary"
+                                   Style="{StaticResource ActionButton}"
+                                   Click="CheckUpdate_Click"/>
+                        <ui:Button x:Name="UpdateBtn" Content="下载并安装更新" Appearance="Secondary"
+                                   Style="{StaticResource ActionButton}"
+                                   Visibility="Collapsed" Click="Update_Click"
+                                   Margin="12,0,0,0"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="3" BorderBrush="#D8DEE6" BorderThickness="1" CornerRadius="6"
+                            Background="White" Margin="0,14,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,10">
+                            <TextBlock x:Name="ReleaseNotes" Text="点击「检查更新」查看是否有新版本。"
+                                       FontSize="12" Foreground="#5A6472" TextWrapping="Wrap"/>
+                        </ScrollViewer>
+                    </Border>
+
+                    <TextBlock Grid.Row="4" x:Name="UpdateStatus" Text="" FontSize="12"
+                               Foreground="#0F6CBD" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                </Grid>
             </Grid>
         </Grid>
     </Grid>

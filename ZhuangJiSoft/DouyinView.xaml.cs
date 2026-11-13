@@ -12,6 +12,8 @@ namespace DeskApp;
 /// 抖音下载模块（二级页面）：输入单条分享链接解析下载，表格展示进度与结果。
 /// 路线 A：分享页 _ROUTER_DATA 协议解析（参考 aiaoxd/douyinDownloader），无需登录。
 /// </summary>
+[ToolModule("douyin", "抖音下载", "🎵", "粘贴分享链接，下载无水印视频",
+    Order = 70, Tables = new string[] { "DouyinRecords" })]
 public partial class DouyinView : UserControl
 {
     public DouyinView()

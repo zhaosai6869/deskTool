@@ -1,33 +1,28 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using DeskApp.Models;
+using DeskApp.Services;
 using Wpf.Ui.Controls;
 
 namespace DeskApp;
 
 /// <summary>
 /// 桌面工具外壳：FluentWindow + 自定义标题栏（标题/返回/设置/最小化/关闭）+ 各模块二级页面。
+///
+/// 页面不再逐个手写导航方法：NavigateModule(key) 按 ModuleCatalog 里的 ViewType
+/// 反射创建并缓存页面，ViewModel 若有无参 Load() 会自动调用。
+/// 新增模块只要写 View + [ToolModule]，这里零改动。
 /// </summary>
 public partial class LauncherWindow : FluentWindow
 {
     private readonly HomeView _home = new();
-    private readonly SoftwareManagerView _software = new();
-    private readonly WinRemoteView _winRemote = new();
-    private readonly SshRemoteView _sshRemote = new();
-    private readonly ToDeskView _toDesk = new();
-    private readonly SunflowerView _sunflower = new();
-    private readonly SphView _sph = new();
-
-    private readonly DouyinView _douyin = new();
-
-    private readonly KuaishouView _kuaishou = new();
-
-    private readonly BiliView _bili = new();
-
-    private readonly FanqieView _fanqie = new();
-
-    private readonly QuickLaunchView _quickLaunch = new();
+    private readonly Dictionary<string, UserControl> _pages = new(StringComparer.OrdinalIgnoreCase);
 
     public LauncherWindow()
     {
@@ -43,95 +38,79 @@ public partial class LauncherWindow : FluentWindow
         BackButton.Visibility = Visibility.Collapsed;
     }
 
-    public void NavigateSoftware()
+    /// <summary>按模块 Key 打开对应页面（自动创建 + 缓存）</summary>
+    public void NavigateModule(string key)
     {
-        PageHost.Content = _software;
+        var module = ModuleCatalog.Find(key);
+        if (module is null)
+        {
+            PromptDialog.Show(this, "该模块不存在或已被移除。", "提示",
+                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+            return;
+        }
+
+        if (!_pages.TryGetValue(key, out var page))
+        {
+            try
+            {
+                page = (UserControl)Activator.CreateInstance(module.ViewType)!;
+                _pages[key] = page;
+            }
+            catch (Exception ex)
+            {
+                PromptDialog.Show(this, $"打开「{module.Name}」失败：{ex.Message}", "错误",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                return;
+            }
+        }
+
+        TryLoad(page);
+        PageHost.Content = page;
         BackButton.Visibility = Visibility.Visible;
     }
 
-    public void NavigateWinRemote()
+    /// <summary>约定：ViewModel 有无参 public void Load() 时，每次进入页面刷新数据</summary>
+    private static void TryLoad(UserControl page)
     {
-        (_winRemote.DataContext as ViewModels.RdpViewModel)?.Load();
-        PageHost.Content = _winRemote;
-        BackButton.Visibility = Visibility.Visible;
+        var vm = page.DataContext;
+        if (vm is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var method = vm.GetType().GetMethod("Load", BindingFlags.Public | BindingFlags.Instance,
+                binder: null, types: Type.EmptyTypes, modifiers: null);
+            if (method is not null && method.ReturnType == typeof(void))
+            {
+                method.Invoke(vm, null);
+            }
+        }
+        catch
+        {
+            // 加载失败不阻断页面展示，模块内部通常有自己的异常提示
+        }
     }
 
-    public void NavigateSshRemote()
-    {
-        (_sshRemote.DataContext as ViewModels.SshViewModel)?.Load();
-        PageHost.Content = _sshRemote;
-        BackButton.Visibility = Visibility.Visible;
-    }
-
-    public void NavigateToDesk()
-    {
-        (_toDesk.DataContext as ViewModels.ToDeskViewModel)?.Load();
-        PageHost.Content = _toDesk;
-        BackButton.Visibility = Visibility.Visible;
-    }
-
-    public void NavigateSunflower()
-    {
-        (_sunflower.DataContext as ViewModels.SunflowerViewModel)?.Load();
-        PageHost.Content = _sunflower;
-        BackButton.Visibility = Visibility.Visible;
-    }
-
-    public void NavigateSph()
-    {
-        (_sph.DataContext as ViewModels.SphViewModel)?.Load();
-        PageHost.Content = _sph;
-        BackButton.Visibility = Visibility.Visible;
-    }
-
-    public void NavigateDouyin()
-    {
-        (_douyin.DataContext as ViewModels.DouyinViewModel)?.Load();
-        PageHost.Content = _douyin;
-        BackButton.Visibility = Visibility.Visible;
-    }
-
-    public void NavigateKuaishou()
-    {
-        (_kuaishou.DataContext as ViewModels.KuaishouViewModel)?.Load();
-        PageHost.Content = _kuaishou;
-        BackButton.Visibility = Visibility.Visible;
-    }
-
-    public void NavigateBili()
-    {
-        (_bili.DataContext as ViewModels.BiliViewModel)?.Load();
-        PageHost.Content = _bili;
-        BackButton.Visibility = Visibility.Visible;
-    }
-
-    public void NavigateFanqie()
-    {
-        (_fanqie.DataContext as ViewModels.FanqieViewModel)?.Load();
-        PageHost.Content = _fanqie;
-        BackButton.Visibility = Visibility.Visible;
-    }
-
-    public void NavigateQuickLaunch()
-    {
-        (_quickLaunch.DataContext as ViewModels.QuickLaunchViewModel)?.Load();
-        PageHost.Content = _quickLaunch;
-        BackButton.Visibility = Visibility.Visible;
-    }
-
-    private void Back_Click(object sender, RoutedEventArgs e) => NavigateHome();
-
-    private void Settings_Click(object sender, RoutedEventArgs e)
+    /// <summary>打开设置，可指定初始面板；关闭后立刻刷新首页卡片</summary>
+    public void OpenSettings(int panel = SettingsWindow.ModulesPanel)
     {
         var dlg = new SettingsWindow
         {
             Owner = this,
+            InitialPanel = panel,
             WindowStartupLocation = WindowStartupLocation.Manual
         };
         dlg.Left = Left + (Width - dlg.Width) / 2;
         dlg.Top = Top + (Height - dlg.Height) / 2;
         dlg.ShowDialog();
+        _home.RefreshModules();
     }
+
+    private void Back_Click(object sender, RoutedEventArgs e) => NavigateHome();
+
+    private void Settings_Click(object sender, RoutedEventArgs e) => OpenSettings();
 
     private void Minimize_Click(object sender, RoutedEventArgs e) => SystemCommands.MinimizeWindow(this);
     private void Close_Click(object sender, RoutedEventArgs e) => SystemCommands.CloseWindow(this);

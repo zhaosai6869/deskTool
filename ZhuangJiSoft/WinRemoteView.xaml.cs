@@ -12,6 +12,8 @@ namespace DeskApp;
 /// Win 远程模块（二级页面）。新增/修改用弹窗 WinRemoteEditDialog；双击行直接连接（拉起 mstsc）；
 /// 行内 Ping 列显示延迟（绿色数字 / 红色"未连通"）；右键菜单可复制密码、复制信息、测试 Ping。
 /// </summary>
+[ToolModule("winremote", "win远程", "🖥", "保存远程桌面连接，一键连上主机",
+    Order = 20, Tables = new string[] { "RdpRecords" })]
 public partial class WinRemoteView : UserControl
 {
     public WinRemoteView()

@@ -11,6 +11,8 @@ namespace DeskApp;
 /// <summary>
 /// 番茄小说下载模块（二级页面）：按名称搜索（WebView2 过滑块）或输入书号/目录链接，逐章下载并解码导出 TXT。
 /// </summary>
+[ToolModule("fanqie", "番茄小说", "📖", "按名称搜索或书号直达，下载 TXT",
+    Order = 110, Tables = new string[] { "FanqieRecords" })]
 public partial class FanqieView : UserControl
 {
     public FanqieView()

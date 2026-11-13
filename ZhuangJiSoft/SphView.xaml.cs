@@ -12,6 +12,8 @@ namespace DeskApp;
 /// 视频号下载模块（二级页面）：输入单条分享链接解析下载，表格展示进度与结果。
 /// 参考 QinGeneral/wx-downloader 的交互思路重构（元宝登录 + 链接解析 + 去重下载）。
 /// </summary>
+[ToolModule("wechat_channels", "视频号下载", "🎬", "粘贴视频号分享链接，解析下载",
+    Order = 100, Tables = new string[] { "SphRecords" })]
 public partial class SphView : UserControl
 {
     public SphView()
