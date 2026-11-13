@@ -9,17 +9,14 @@
         新页面请直接引用下述 keyed 样式；ContextMenu / MenuItem 为隐式全局，自动统一。
     -->
 
-    <!-- ============ 操作按钮：大点击区 + 边框常驻（正常/悬停/按下都不消失） ============ -->
-    <!-- WPF-UI 的 ui:Button 模板在 hover 时会把 ContentBorder.BorderBrush 绑到
-         MouseOverBorderBrush，按下时绑到 PressedBorderBrush；Appearance=Primary 的模板触发器
-         还把 PressedBorderBrush 设为透明 DynamicResource，Secondary 的 MouseOverBorderBrush
-         也可能解析为空 —— 这就是「鼠标移入边框不显示」的根因。
-         Style.Triggers 的优先级高于 ControlTemplate.Triggers，这里在 IsEnabled=True 时强制
-         三个状态用同一个可见画刷，边框便在任何状态都保持显示；同时去掉缩放动画，
-         避免点击范围只在 hover 时才变化。 -->
+    <!-- ============ 操作按钮：大点击区 + 边框常驻 ============
+         重要：这里自带 ControlTemplate，不再用 WPF-UI 的默认模板。
+         默认模板在 IsMouseOver 时会 BeginStoryboard 对 "(0).(1).Background" 做动画；
+         本工程 App.xaml 只合并了 ControlsDictionary、没有合并主题色字典，
+         该路径常解析不到 DependencyObject，鼠标移上按钮就抛 InvalidOperationException
+         并被全局异常处理弹成「程序出现异常」对话框。改用纯属性触发器后彻底没有动画，
+         同时保留：整块可点（Background=Transparent 非 null）、边框常驻、Icon、禁用态。 -->
     <Style x:Key="ActionButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
-        <!-- WPF-UI 模板的 ContentBorder.Background 默认是 null，空区域不参与命中测试
-             （只有文字能点）。置为 Transparent 后整块按钮区域都可点击，视觉无变化。 -->
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="BorderBrush" Value="#B8C0CC"/>
@@ -29,18 +26,44 @@
         <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ui:Button">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6" Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                    VerticalAlignment="{TemplateBinding VerticalContentAlignment}">
+                            <ContentPresenter x:Name="IconSite" ContentSource="Icon"
+                                              VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"
+                                              RecognizesAccessKey="True"/>
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Icon" Value="{x:Null}">
+                            <Setter TargetName="IconSite" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#EAF2FB"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#0F6CBD"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#DCEBFA"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
         <Style.Triggers>
-            <!-- 常驻边框：覆盖模板按 Appearance / hover / pressed 改透明画刷的行为 -->
             <Trigger Property="IsEnabled" Value="True">
                 <Setter Property="BorderBrush" Value="#B8C0CC"/>
-                <Setter Property="MouseOverBorderBrush" Value="#B8C0CC"/>
-                <Setter Property="PressedBorderBrush" Value="#B8C0CC"/>
-            </Trigger>
-            <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Opacity" Value="0.88"/>
-            </Trigger>
-            <Trigger Property="IsPressed" Value="True">
-                <Setter Property="Opacity" Value="0.76"/>
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
                 <Setter Property="Opacity" Value="0.45"/>

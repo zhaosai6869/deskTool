@@ -36,10 +36,32 @@ public partial class App : Application
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
+        // 第三方控件模板自带的悬停/状态切换动画，在本工程未合并主题色字典时可能抛
+        // 「属性未指向路径中的 DependencyObject」。ActionButton 已换自绘模板根治，
+        // 这里再兜一层：同类动画异常只记日志，不弹窗打扰用户；其它异常照常提示。
+        var silent = IsThemeAnimationNoise(e.Exception);
         Log(e.Exception);
-        PromptDialog.Show(null, $"程序出现异常：\n{e.Exception.Message}\n\n详情见 data\\error.log",
-            "桌面工具", MessageBoxButton.OK, MessageBoxImage.Error);
         e.Handled = true;
+
+        if (!silent)
+        {
+            PromptDialog.Show(null, $"程序出现异常：\n{e.Exception.Message}\n\n详情见 data\\error.log",
+                "桌面工具", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private static bool IsThemeAnimationNoise(Exception ex)
+    {
+        if (ex is not InvalidOperationException)
+        {
+            return false;
+        }
+
+        var stack = ex.StackTrace ?? string.Empty;
+        return stack.Contains("VerifyPathIsAnimatable", StringComparison.Ordinal)
+               || stack.Contains("Storyboard.BeginCommon", StringComparison.Ordinal)
+               || (stack.Contains("BeginStoryboard", StringComparison.Ordinal)
+                   && ex.Message.Contains("DependencyObject", StringComparison.Ordinal));
     }
 
     private static void OnDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
