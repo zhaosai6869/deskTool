@@ -39,6 +39,14 @@ foreach ($name in @('data', 'updates', '*_cache')) {
         Remove-Item -Recurse -Force
 }
 
+# Windows-only app: drop SQLite native libs for Linux/macOS/wasm/browser RIDs (about 19 MB).
+$runtimes = Join-Path $stage 'runtimes'
+if (Test-Path $runtimes) {
+    Get-ChildItem -Path $runtimes -Directory |
+        Where-Object { $_.Name -notlike 'win-*' } |
+        Remove-Item -Recurse -Force
+}
+
 Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
 Remove-Item $stage -Recurse -Force
 

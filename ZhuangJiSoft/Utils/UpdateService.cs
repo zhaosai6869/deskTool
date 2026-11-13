@@ -20,6 +20,7 @@ public sealed record UpdateInfo(
     string Tag,
     string Notes,
     string DownloadUrl,
+    string ApiDownloadUrl,
     string AssetName,
     DateTimeOffset PublishedAt,
     long Size);
@@ -81,6 +82,7 @@ public static class UpdateService
         }
 
         string? url = null;
+        string? apiUrl = null;
         string? asset = null;
         long size = 0;
         if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
@@ -94,6 +96,8 @@ public static class UpdateService
                 }
 
                 url = Str(item, "browser_download_url");
+                // api.github.com 资产端点，作为 github.com 直链被代理掐断时的备用地址
+                apiUrl = Str(item, "url");
                 asset = name;
                 if (item.TryGetProperty("size", out var sizeNode) && sizeNode.TryGetInt64(out var bytes))
                 {
@@ -117,7 +121,7 @@ public static class UpdateService
         }
 
         return new UpdateInfo(version, Format(version), tag, Str(root, "body"),
-            url!, asset ?? "update.zip", published, size);
+            url!, apiUrl ?? string.Empty, asset ?? "update.zip", published, size);
     }
 
     /// <summary>下载并解压更新包，返回可直接运行的「更新进程」所在目录</summary>
@@ -137,17 +141,7 @@ public static class UpdateService
 
         try
         {
-            report("正在下载更新包…");
-            using (var response = await Http.Value
-                       .GetAsync(info.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, ct)
-                       .ConfigureAwait(false))
-            {
-                response.EnsureSuccessStatusCode();
-                await using var source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-                await using var target = new FileStream(zipPath, FileMode.Create, FileAccess.Write,
-                    FileShare.None, 81920, useAsync: true);
-                await source.CopyToAsync(target, ct).ConfigureAwait(false);
-            }
+            await DownloadPackageAsync(info, zipPath, report, ct).ConfigureAwait(false);
 
             report("正在解压并校验更新包…");
             ZipFile.ExtractToDirectory(zipPath, stage, overwriteFiles: true);
@@ -165,6 +159,95 @@ public static class UpdateService
         {
             TryDeleteDirectory(versionDir);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// 下载更新包。browser_download_url 指向 github.com，在部分代理 / 安全软件环境下会被掐断，
+    /// 失败时自动回退到 api.github.com 的资产端点（必须声明 Accept: application/octet-stream）。
+    /// 下载过程按百分比回报，避免慢速网络下看起来像卡死。
+    /// </summary>
+    private static async Task DownloadPackageAsync(
+        UpdateInfo info, string zipPath, Action<string> report, CancellationToken ct)
+    {
+        var urls = new List<(string Url, bool IsApi)>();
+        if (!string.IsNullOrWhiteSpace(info.DownloadUrl))
+        {
+            urls.Add((info.DownloadUrl, false));
+        }
+
+        if (!string.IsNullOrWhiteSpace(info.ApiDownloadUrl))
+        {
+            urls.Add((info.ApiDownloadUrl, true));
+        }
+
+        if (urls.Count == 0)
+        {
+            throw new InvalidOperationException("更新包缺少下载地址。");
+        }
+
+        for (var i = 0; i < urls.Count; i++)
+        {
+            var (url, isApi) = urls[i];
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                if (isApi)
+                {
+                    request.Headers.Accept.Clear();
+                    request.Headers.Accept.ParseAdd("application/octet-stream");
+                }
+
+                using var response = await Http.Value
+                    .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct)
+                    .ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+
+                var total = response.Content.Headers.ContentLength ?? info.Size;
+                await using var source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                await using (var target = new FileStream(zipPath, FileMode.Create, FileAccess.Write,
+                                 FileShare.None, 81920, useAsync: true))
+                {
+                    var buffer = new byte[81920];
+                    long done = 0;
+                    var milestone = 0;
+                    int read;
+                    while ((read = await source.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+                    {
+                        await target.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                        done += read;
+                        if (total <= 0)
+                        {
+                            continue;
+                        }
+
+                        var percent = (int)(done * 100 / total);
+                        if (percent < milestone + 10)
+                        {
+                            continue;
+                        }
+
+                        milestone = percent / 10 * 10;
+                        report($"正在下载更新包… {percent}%" +
+                               $"（{done / 1024.0 / 1024.0:F1} / {total / 1024.0 / 1024.0:F1} MB）");
+                    }
+
+                    await target.FlushAsync(ct).ConfigureAwait(false);
+                }
+
+                var actual = new FileInfo(zipPath).Length;
+                if (info.Size > 0 && actual != info.Size)
+                {
+                    throw new IOException($"更新包不完整（{actual} / {info.Size} 字节）。");
+                }
+
+                return;
+            }
+            catch when (i < urls.Count - 1)
+            {
+                TryDeleteFile(zipPath);
+                report("下载地址不可用，正在尝试备用地址…");
+            }
         }
     }
 
