@@ -1,0 +1,13 @@
+# 构建产物（含 data/ 运行数据库与登录凭据，绝不入库）
+[Bb]in/
+[Oo]bj/
+
+# IDE
+.vs/
+*.user
+*.suo
+*.DotSettings.user
+
+# 运行时数据与缓存（若从 bin 拷出）
+data/
+*_cache/

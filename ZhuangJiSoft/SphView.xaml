@@ -1,0 +1,120 @@
+<UserControl x:Class="DeskApp.SphView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="clr-namespace:DeskApp"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             mc:Ignorable="d"
+             d:DesignHeight="560" d:DesignWidth="900">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 第一行：标题 + 登录元宝 + 登录状态 -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <ui:TextBlock Text="视频号下载" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"
+                          Margin="0,0,16,0" Foreground="#1F1F1F"/>
+            <ui:Button Content="登录元宝" Click="Login_Click" Margin="0,0,10,0" Appearance="Primary"
+                       Style="{StaticResource ActionButton}">
+                <ui:Button.Icon>
+                    <ui:SymbolIcon Symbol="Cloud24" />
+                </ui:Button.Icon>
+            </ui:Button>
+            <TextBlock Text="{Binding LoginText}" FontSize="13" Foreground="#5A6472"
+                       VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- 第二行：选择目录 + 清空记录 + 退出登录 -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+            <ui:Button Content="选择目录" Click="PickDir_Click" Margin="0,0,10,0" Appearance="Secondary"
+                       Style="{StaticResource ActionButton}">
+                <ui:Button.Icon>
+                    <ui:SymbolIcon Symbol="FolderOpen24" />
+                </ui:Button.Icon>
+            </ui:Button>
+            <ui:Button Content="清空记录" Click="Clear_Click" Margin="0,0,10,0" Appearance="Danger"
+                       Style="{StaticResource ActionButton}">
+                <ui:Button.Icon>
+                    <ui:SymbolIcon Symbol="Delete24" />
+                </ui:Button.Icon>
+            </ui:Button>
+            <ui:Button Content="退出登录" Click="Logout_Click" Appearance="Secondary"
+                       Style="{StaticResource ActionButton}">
+                <ui:Button.Icon>
+                    <ui:SymbolIcon Symbol="SignOut24" />
+                </ui:Button.Icon>
+            </ui:Button>
+        </StackPanel>
+
+        <Border Grid.Row="2" Height="1" Background="#E5E9F0" Margin="0,0,0,12"/>
+
+        <!-- 第三行：单行链接输入 + 下载 -->
+        <Grid Grid.Row="3" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="LinkBox" Grid.Column="0" Style="{StaticResource Input}"
+                     Height="40" VerticalContentAlignment="Center" Padding="10,0"
+                     ToolTip="粘贴视频号分享链接（微信里 分享 → 复制链接），一次解析一条"/>
+            <ui:Button x:Name="DownloadBtn" Grid.Column="1" Content="下载" Click="Download_Click"
+                       Margin="10,0,0,0" Appearance="Primary" Height="40" Width="120"
+                       Style="{StaticResource ActionButton}">
+                <ui:Button.Icon>
+                    <ui:SymbolIcon Symbol="ArrowDownload24" />
+                </ui:Button.Icon>
+            </ui:Button>
+        </Grid>
+
+        <!-- 记录表格：双击打开文件位置，右键重下/复制链接 -->
+        <DataGrid Grid.Row="4" x:Name="Grid"
+                  Style="{StaticResource AppDataGrid}"
+                  ItemsSource="{Binding Items}"
+                  SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                  MouseRightButtonDown="Grid_MouseRightButtonDown">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="重新下载" Click="Retry_Click"/>
+                    <MenuItem Header="打开文件位置" Click="OpenFolder_Click"/>
+                    <MenuItem Header="复制链接" Click="CopyLink_Click"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="标题" Width="240"
+                                    ElementStyle="{StaticResource CellText}" Binding="{Binding Title}"/>
+                <DataGridTextColumn Header="作者" Width="120"
+                                    ElementStyle="{StaticResource CellText}" Binding="{Binding Author}"/>
+                <DataGridTextColumn Header="大小" Width="90"
+                                    ElementStyle="{StaticResource CellText}" Binding="{Binding BytesText}"/>
+                <DataGridTextColumn Header="状态" Width="130" Binding="{Binding Status}">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource CellText}">
+                            <!-- 备注列已去掉，失败原因改为鼠标悬停查看 -->
+                            <Setter Property="ToolTip" Value="{Binding Error}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Error}" Value="">
+                                    <Setter Property="ToolTip" Value="{x:Null}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="失败">
+                                    <Setter Property="Foreground" Value="#D13438"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="已下载">
+                                    <Setter Property="Foreground" Value="#1F8A4C"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="时间" Width="*"
+                                    ElementStyle="{StaticResource CellText}" Binding="{Binding TimeText}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

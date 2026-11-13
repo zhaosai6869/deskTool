@@ -1,0 +1,56 @@
+<Window x:Class="DeskApp.ToDeskEditDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DeskApp"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        mc:Ignorable="d"
+        Title="编辑 ToDesk" Width="480" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+    <Grid Margin="24,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="76"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="名称" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="NameBox" Grid.Row="0" Grid.Column="1" Style="{StaticResource Input}" Margin="12,0,0,10"/>
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="设备代码" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="IdBox" Grid.Row="1" Grid.Column="1" Style="{StaticResource Input}" Margin="12,0,0,10"/>
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="连接密码" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="PwdBox" Grid.Row="2" Grid.Column="1"
+                     Style="{StaticResource Input}" Margin="12,0,0,10"/>
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="备注" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="NotesBox" Grid.Row="3" Grid.Column="1" Style="{StaticResource Input}"
+                     Margin="12,0,0,0" Height="34"/>
+        </Grid>
+
+        <!-- 参考项目 Add_todesk 页的使用说明，轻量提示，不改变整体主题 -->
+        <TextBlock Grid.Row="1" Margin="0,14,0,0" FontSize="11" Foreground="#5A6472" TextWrapping="Wrap"
+                   Text="设备代码不要带空格，连接密码填临时密码。需要 ToDesk for Windows 4.0.0 或更高版本，且仅支持设备列表中已解锁的设备发起控制。"/>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <ui:Button Content="确定" Width="120" Margin="0,0,10,0" Appearance="Primary"
+                      Style="{StaticResource ActionButton}" Click="Ok_Click"/>
+            <ui:Button Content="取消" Width="120" Appearance="Secondary"
+                      Style="{StaticResource ActionButton}" Click="Cancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

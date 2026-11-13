@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>DeskApp Terminal</title>
+  <link rel="stylesheet" href="xterm/xterm.min.css" />
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #FFFFFF; }
+    #terminal { width: 100%; height: 100%; }
+    .xterm { padding: 10px 8px; }
+    .xterm-viewport { background: #FFFFFF !important; scrollbar-width: none; }
+    .xterm-viewport::-webkit-scrollbar { width: 0; height: 0; display: none; }
+    .xterm-screen { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; }
+  </style>
+</head>
+<body>
+  <div id="terminal"></div>
+
+  <script src="xterm/xterm.min.js"></script>
+  <script src="xterm/addon-fit.min.js"></script>
+  <script>
+    // 与主界面一致的浅色 Fluent 配色
+    const term = new Terminal({
+      fontFamily: 'Cascadia Mono, Consolas, "Courier New", monospace',
+      fontSize: 14,
+      lineHeight: 1.25,
+      cursorBlink: true,
+      cursorStyle: 'bar',
+      scrollback: 5000,
+      convertEol: true,
+      allowProposedApi: true,
+      theme: {
+        background: '#FFFFFF',
+        foreground: '#1F1F1F',
+        cursor: '#0F6CBD',
+        cursorAccent: '#FFFFFF',
+        selectionBackground: '#CDE3FA',
+        black: '#1F1F1F', red: '#D13438', green: '#0E8A2E', yellow: '#B8860B',
+        blue: '#0F6CBD', magenta: '#8E44AD', cyan: '#0E7490', white: '#F3F6FA',
+        brightBlack: '#5A6472', brightRed: '#E87070', brightGreen: '#3CB371',
+        brightYellow: '#D9A441', brightBlue: '#4A90D9', brightMagenta: '#B784D0',
+        brightCyan: '#3FA7B8', brightWhite: '#FFFFFF'
+      }
+    });
+
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(document.getElementById('terminal'));
+
+    const decoder = new TextDecoder('utf-8');
+
+    // 容器尚未布局时 FitAddon 可能给出 0/NaN，统一兜底成安全正整数
+    function safeInt(v, fallback) {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+    }
+
+    // WebView2 注入的是 window.chrome.webview（小写 v）；驼峰 webView 是 Chrome 扩展 API 的写法，
+    // 在 WebView2 里为 undefined。两者都兼容，避免消息静默丢失。
+    function webviewBridge() {
+      return window.chrome && (window.chrome.webview || window.chrome.webView);
+    }
+
+    function post(msg) {
+      try {
+        const wv = webviewBridge();
+        if (wv && typeof wv.postMessage === 'function') {
+          wv.postMessage(msg);
+          return true;
+        }
+        document.body.dataset.bridge = 'missing';
+      } catch (e) { /* 桥接不可用时不影响终端渲染 */ }
+      return false;
+    }
+
+    // 页面脚本异常直接回传宿主，避免"白屏却无任何提示"
+    window.addEventListener('error', function (e) {
+      post({ type: 'jserror', message: String(e && e.message ? e.message : 'unknown') });
+    });
+
+    function fit() {
+      const el = document.getElementById('terminal');
+      if (el && el.clientWidth > 20 && el.clientHeight > 20) {
+        try { fitAddon.fit(); } catch (e) { }
+      }
+      return { cols: safeInt(term.cols, 120), rows: safeInt(term.rows, 36) };
+    }
+
+    // 宿主可在 NavigationCompleted 后主动调用，避免只依赖页面自动发消息
+    window.sendReady = function () {
+      const s = fit();
+      post({ type: 'ready', cols: s.cols, rows: s.rows });
+      return s.cols + 'x' + s.rows;
+    };
+    window.sizeText = function () { const s = fit(); return s.cols + 'x' + s.rows; };
+    window.bridgeState = function () {
+      const wv = webviewBridge();
+      return (wv && typeof wv.postMessage === 'function') ? 'ok' : 'missing';
+    };
+
+    // C# -> JS：服务端输出（base64 传输，规避转义与分块边界问题）
+    window.writeOutput = function (b64) {
+      if (!b64) return;
+      try {
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        term.write(decoder.decode(bytes, { stream: true }));
+      } catch (e) { /* ignore malformed chunk */ }
+    };
+
+    // C# -> JS：状态栏提示（浅色，不写入 shell 流）
+    window.writeNotice = function (text, color) {
+      try {
+        term.write('\r\n\x1b[1;38;2;' + (color || '15;109;189') + 'm' + text + '\x1b[0m\r\n');
+      } catch (e) { }
+    };
+
+    // JS -> C#：用户输入
+    term.onData(function (data) { post({ type: 'input', data: data }); });
+    // JS -> C#：终端尺寸变化
+    term.onResize(function (size) {
+      post({ type: 'resize', cols: safeInt(size.cols, 120), rows: safeInt(size.rows, 36) });
+    });
+    window.addEventListener('resize', function () {
+      const s = fit();
+      post({ type: 'resize', cols: s.cols, rows: s.rows });
+    });
+
+    fit();
+    window.sendReady();
+    setTimeout(window.sendReady, 150);
+    setTimeout(window.sendReady, 600);
+    setTimeout(window.sendReady, 1500);
+    term.focus();
+  </script>
+</body>
+</html>

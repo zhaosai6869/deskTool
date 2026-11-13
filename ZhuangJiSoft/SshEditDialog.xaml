@@ -1,0 +1,65 @@
+<Window x:Class="DeskApp.SshEditDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="编辑 SSH/FTP 连接" Width="480" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+    <Grid Margin="24,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="76"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="名称" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="NameBox" Grid.Row="0" Grid.Column="1" Style="{StaticResource Input}" Margin="12,0,0,10"/>
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="协议" Style="{StaticResource FieldLabel}"/>
+            <ComboBox x:Name="ProtocolBox" Grid.Row="1" Grid.Column="1" Height="34" Margin="12,0,0,10"
+                      VerticalContentAlignment="Center" FontSize="13" Foreground="#1F1F1F"
+                      SelectionChanged="ProtocolBox_SelectionChanged">
+                <ComboBoxItem Content="SSH / SFTP" Tag="SSH"/>
+                <ComboBoxItem Content="FTP / FTPS" Tag="FTP"/>
+            </ComboBox>
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="主机/IP" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="HostBox" Grid.Row="2" Grid.Column="1" Style="{StaticResource Input}" Margin="12,0,0,10"/>
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="端口" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="PortBox" Grid.Row="3" Grid.Column="1" Style="{StaticResource Input}"
+                     Margin="12,0,0,10" Text="22"/>
+
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="用户名" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="UserBox" Grid.Row="4" Grid.Column="1" Style="{StaticResource Input}" Margin="12,0,0,10"/>
+
+            <TextBlock Grid.Row="5" Grid.Column="0" Text="密码" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="PwdBox" Grid.Row="5" Grid.Column="1"
+                     Style="{StaticResource Input}" Margin="12,0,0,10"/>
+
+            <TextBlock Grid.Row="6" Grid.Column="0" Text="备注" Style="{StaticResource FieldLabel}"/>
+            <TextBox x:Name="NotesBox" Grid.Row="6" Grid.Column="1" Style="{StaticResource Input}"
+                     Margin="12,0,0,0"/>
+        </Grid>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <ui:Button Content="确定" Width="120" Margin="0,0,10,0" Appearance="Primary"
+                      Style="{StaticResource ActionButton}" Click="Ok_Click"/>
+            <ui:Button Content="取消" Width="120" Appearance="Secondary"
+                      Style="{StaticResource ActionButton}" Click="Cancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
