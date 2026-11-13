@@ -19,11 +19,13 @@ if ($Version -notmatch '^\d+\.\d+\.\d+$') {
 
 # Keep the assembly version in sync; otherwise the updater keeps offering the same release.
 $content = Get-Content $proj -Raw
-$updated = [regex]::Replace($content, '<Version>[^<]*</Version>', "<Version>$Version</Version>")
-if ($updated -eq $content) {
+if (-not [regex]::IsMatch($content, '<Version>[^<]*</Version>')) {
     throw 'Could not find <Version> in csproj'
 }
-Set-Content -Path $proj -Value $updated -Encoding UTF8 -NoNewline
+$updated = [regex]::Replace($content, '<Version>[^<]*</Version>', "<Version>$Version</Version>")
+if ($updated -ne $content) {
+    Set-Content -Path $proj -Value $updated -Encoding UTF8 -NoNewline
+}
 
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 if (Test-Path $zip) { Remove-Item $zip -Force }
