@@ -84,6 +84,42 @@
         </Setter>
     </Style>
 
+    <!-- ============ 模块管理里的小图标按钮（↑↓ 排序） ============ -->
+    <Style x:Key="MiniIconButton" TargetType="Button">
+        <Setter Property="Width" Value="26"/>
+        <Setter Property="Height" Value="26"/>
+        <Setter Property="Margin" Value="0,0,4,0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="#5A6472"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="#FFFFFF" BorderBrush="#D8DEE6"
+                            BorderThickness="1" CornerRadius="5" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#EAF2FB"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#0F6CBD"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#DCEBFA"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.35"/>
+                            <Setter TargetName="Bd" Property="Background" Value="#F5F6F8"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ============ 标题栏按钮：统一 46x40，主窗口与设置窗口同一风格 ============ -->
     <Style x:Key="CaptionBtn" TargetType="Button">
         <Setter Property="Width" Value="46"/>

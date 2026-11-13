@@ -96,7 +96,7 @@
                                Foreground="#5A6472" Margin="0,8,0,0"/>
                 </StackPanel>
 
-                <!-- 模块管理：全部模块 + 勾选是否上首页 -->
+                <!-- 模块管理：全部模块 + 勾选是否上首页 + ↑↓ 调整顺序 -->
                 <Grid x:Name="PanelModules" Visibility="Visible" Margin="24,20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -107,7 +107,7 @@
                     <TextBlock Grid.Row="0" Text="模块管理" Style="{StaticResource PanelTitle}"/>
                     <StackPanel Grid.Row="1">
                         <Border Height="1" Background="#E5E9F0" Margin="0,14,0,12"/>
-                        <TextBlock Text="勾选后显示在主界面；以后新增的模块会自动出现在这里。"
+                        <TextBlock Text="勾选后显示在主界面；用 ↑↓ 调整卡片顺序，新增模块自动排到末尾。"
                                    FontSize="12" Foreground="#5A6472" TextWrapping="Wrap"/>
                     </StackPanel>
 
@@ -134,10 +134,21 @@
                                                                Foreground="#5A6472" Margin="0,3,0,0"
                                                                TextWrapping="Wrap"/>
                                                 </StackPanel>
-                                                <CheckBox Grid.Column="2" Style="{StaticResource ModuleCheckBox}"
-                                                          IsChecked="{Binding IsChecked, Mode=TwoWay}"
-                                                          VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                          Margin="12,0,0,0" ToolTip="显示在主界面"/>
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal"
+                                                            VerticalAlignment="Center" Margin="12,0,0,0">
+                                                    <Button Content="↑" Style="{StaticResource MiniIconButton}"
+                                                            ToolTip="上移（主界面卡片往前排）"
+                                                            IsEnabled="{Binding CanMoveUp}"
+                                                            Click="MoveUp_Click"/>
+                                                    <Button Content="↓" Style="{StaticResource MiniIconButton}"
+                                                            ToolTip="下移（主界面卡片往后排）"
+                                                            IsEnabled="{Binding CanMoveDown}"
+                                                            Click="MoveDown_Click"/>
+                                                    <CheckBox Style="{StaticResource ModuleCheckBox}"
+                                                              IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                              VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                              Margin="8,0,0,0" ToolTip="显示在主界面"/>
+                                                </StackPanel>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
@@ -146,8 +157,13 @@
                         </ScrollViewer>
                     </Border>
 
-                    <TextBlock Grid.Row="3" Text="勾选状态自动保存，关闭设置后立即生效。"
-                               FontSize="11" Foreground="#8A94A3" Margin="0,10,0,0"/>
+                    <Grid Grid.Row="3" Margin="0,10,0,0">
+                        <TextBlock Text="顺序即主界面卡片顺序，关闭设置后立即生效。"
+                                   FontSize="11" Foreground="#8A94A3" VerticalAlignment="Center"/>
+                        <ui:Button Content="恢复默认顺序" HorizontalAlignment="Right" Height="30"
+                                   Padding="12,0" FontSize="12" Appearance="Secondary"
+                                   Style="{StaticResource ActionButton}" Click="ResetOrder_Click"/>
+                    </Grid>
                 </Grid>
 
                 <!-- 数据管理：全部模块 + 全选 -->

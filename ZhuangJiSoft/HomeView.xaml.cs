@@ -8,9 +8,9 @@ using DeskApp.Services;
 namespace DeskApp;
 
 /// <summary>
-/// 卡片式首页。列表不写死：从 ModuleCatalog（反射扫描 [ToolModule]）取全部模块，
-/// 再按 ModuleSettings 过滤出已勾选的，末尾追加一张「＋」卡片。
-/// 设置窗口关闭后调用 RefreshModules() 即可立即反映勾选变化。
+/// 卡片式首页。列表不写死：ModuleCatalog（反射扫描 [ToolModule]）发现模块，
+/// ModuleSettings 决定启用状态与显示顺序，末尾追加一张「＋」卡片。
+/// 设置窗口关闭后调用 RefreshModules() 即可立即反映勾选与排序变化。
 /// </summary>
 public partial class HomeView : UserControl
 {
@@ -32,7 +32,7 @@ public partial class HomeView : UserControl
         settings.EnsureDefaults(ModuleCatalog.All);
 
         Tools.Clear();
-        foreach (var module in ModuleCatalog.All.Where(m => settings.IsEnabled(m.Key)))
+        foreach (var module in settings.GetOrderedModules().Where(m => settings.IsEnabled(m.Key)))
         {
             Tools.Add(new ToolEntry
             {

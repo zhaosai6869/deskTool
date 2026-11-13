@@ -45,7 +45,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
 
         var settings = ModuleSettings.Instance;
         settings.EnsureDefaults(ModuleCatalog.All);
-        foreach (var module in ModuleCatalog.All)
+        foreach (var module in settings.GetOrderedModules())
         {
             var toggle = MakeEntry(module, settings.IsEnabled(module.Key));
             toggle.PropertyChanged += OnToggleChanged;
@@ -56,6 +56,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
             Modules.Add(data);
         }
 
+        SyncMoveState();
         VersionText.Text = $"版本 {UpdateService.CurrentVersionText}";
 
         SetNav(InitialPanel);
@@ -80,6 +81,80 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         ModuleSettings.Instance.SetEnabled(entry.Key, entry.IsChecked);
+    }
+
+    /// <summary>↑↓：在列表里移动一项，并立刻把新顺序写回配置</summary>
+    private void MoveUp_Click(object sender, RoutedEventArgs e) => MoveModule(sender, -1);
+
+    private void MoveDown_Click(object sender, RoutedEventArgs e) => MoveModule(sender, 1);
+
+    private void MoveModule(object sender, int delta)
+    {
+        if ((sender as Button)?.DataContext is not ModuleEntry entry)
+        {
+            return;
+        }
+
+        var index = ModuleToggles.IndexOf(entry);
+        var target = index + delta;
+        if (index < 0 || target < 0 || target >= ModuleToggles.Count)
+        {
+            return;
+        }
+
+        ModuleToggles.Move(index, target);
+
+        // 数据管理列表保持同一顺序，避免两个面板显示次序不一致
+        var dataIndex = Modules.Select(m => m.Key).ToList().IndexOf(entry.Key);
+        if (dataIndex >= 0 && dataIndex != target)
+        {
+            Modules.Move(dataIndex, target);
+        }
+
+        ModuleSettings.Instance.SetOrder(ModuleToggles.Select(m => m.Key));
+        SyncMoveState();
+    }
+
+    private void ResetOrder_Click(object sender, RoutedEventArgs e)
+    {
+        var settings = ModuleSettings.Instance;
+        settings.ResetOrder();
+
+        // 重建两个列表，保留各自的勾选状态
+        var toggleState = ModuleToggles.ToDictionary(m => m.Key, m => m.IsChecked,
+            StringComparer.OrdinalIgnoreCase);
+        var dataState = Modules.ToDictionary(m => m.Key, m => m.IsChecked,
+            StringComparer.OrdinalIgnoreCase);
+
+        _syncing = true;
+        ModuleToggles.Clear();
+        Modules.Clear();
+        foreach (var module in settings.GetOrderedModules())
+        {
+            var toggle = MakeEntry(module, toggleState.TryGetValue(module.Key, out var on)
+                ? on
+                : settings.IsEnabled(module.Key));
+            toggle.PropertyChanged += OnToggleChanged;
+            ModuleToggles.Add(toggle);
+
+            var data = MakeEntry(module, dataState.TryGetValue(module.Key, out var dc) && dc);
+            data.PropertyChanged += OnDataCheckChanged;
+            Modules.Add(data);
+        }
+
+        // _syncing 期间同步全选框，避免 SelectAll_Changed 反过来把刚恢复的勾选清掉
+        SelectAllBox.IsChecked = Modules.All(m => m.IsChecked);
+        _syncing = false;
+        SyncMoveState();
+    }
+
+    private void SyncMoveState()
+    {
+        for (var i = 0; i < ModuleToggles.Count; i++)
+        {
+            ModuleToggles[i].CanMoveUp = i > 0;
+            ModuleToggles[i].CanMoveDown = i < ModuleToggles.Count - 1;
+        }
     }
 
     private void OnDataCheckChanged(object? sender, PropertyChangedEventArgs e)
