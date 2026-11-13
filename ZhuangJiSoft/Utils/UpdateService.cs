@@ -261,7 +261,7 @@ public static class UpdateService
             throw new FileNotFoundException("更新进程缺失", updater);
         }
 
-        Process.Start(new ProcessStartInfo
+        var process = Process.Start(new ProcessStartInfo
         {
             FileName = updater,
             WorkingDirectory = stageDir,
@@ -269,6 +269,14 @@ public static class UpdateService
             Arguments = $"{UpdaterArg} \"{stageDir}\" \"{BaseDir}\" {Environment.ProcessId}"
         });
 
+        if (process is null)
+        {
+            throw new InvalidOperationException("无法启动更新进程。");
+        }
+
+        // 父进程立刻退出时，部分安全软件 / 作业对象会连带清理刚启动的子进程。
+        // 留一点时间让更新进程完成 WPF 初始化并进入 OnStartup，再关闭自己。
+        Thread.Sleep(2000);
         Application.Current.Shutdown();
     }
 
