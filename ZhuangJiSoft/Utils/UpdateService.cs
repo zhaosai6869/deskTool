@@ -283,27 +283,44 @@ public static class UpdateService
             return false;
         }
 
+        UpdateLog(null, "args: " + string.Join(" | ", args));
         if (args.Length < 3)
         {
+            UpdateLog(null, "abort: too few args");
             return true;
         }
 
         var stage = args[1].Trim('"');
         var baseDir = args[2].Trim('"');
         var pid = args.Length >= 4 && int.TryParse(args[3], out var value) ? value : 0;
+        UpdateLog(baseDir, $"stage={stage} base={baseDir} pid={pid}");
 
         try
         {
             if (pid > 0)
             {
-                try
+                // 轮询确认主进程真的退出，否则它的 DLL 仍被锁，覆盖会失败。
+                for (var i = 0; i < 40; i++)
                 {
-                    using var parent = Process.GetProcessById(pid);
-                    parent.WaitForExit(15000);
-                }
-                catch
-                {
-                    // 主进程已退出，直接继续
+                    Process? parent;
+                    try
+                    {
+                        parent = Process.GetProcessById(pid);
+                    }
+                    catch
+                    {
+                        break; // 进程已不存在
+                    }
+
+                    using (parent)
+                    {
+                        if (parent.WaitForExit(1000))
+                        {
+                            break;
+                        }
+                    }
+
+                    Thread.Sleep(250);
                 }
             }
             else
@@ -311,16 +328,21 @@ public static class UpdateService
                 Thread.Sleep(1200);
             }
 
+            UpdateLog(baseDir, "copy start");
             CopyDirectory(stage, baseDir);
+            UpdateLog(baseDir, "copy done");
+
             Process.Start(new ProcessStartInfo
             {
                 FileName = Path.Combine(baseDir, "DeskApp.exe"),
                 WorkingDirectory = baseDir,
                 UseShellExecute = true
             });
+            UpdateLog(baseDir, "restart launched");
         }
         catch (Exception ex)
         {
+            UpdateLog(baseDir, "FAILED: " + ex);
             System.Windows.MessageBox.Show(
                 $"更新应用失败：{ex.Message}\n\n可手动把下面目录里的文件复制到程序目录：\n{stage}",
                 "桌面工具 · 更新", System.Windows.MessageBoxButton.OK,
@@ -328,6 +350,23 @@ public static class UpdateService
         }
 
         return true;
+    }
+
+    /// <summary>更新进程独立日志：它在 App 的全局异常处理注册之前就返回，异常不会进 error.log</summary>
+    private static void UpdateLog(string? baseDir, string message)
+    {
+        try
+        {
+            var root = string.IsNullOrWhiteSpace(baseDir) ? BaseDir : baseDir;
+            var dir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(Path.Combine(dir, "update.log"),
+                $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}");
+        }
+        catch
+        {
+            // 诊断日志写不进去也不能影响更新
+        }
     }
 
     /// <summary>主程序启动时清理两天前的旧更新目录（跳过更新进程自身所在目录）</summary>
@@ -371,7 +410,24 @@ public static class UpdateService
             var relative = Path.GetRelativePath(source, file);
             var dest = Path.Combine(target, relative);
             Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-            File.Copy(file, dest, overwrite: true);
+
+            // 主进程刚退出时 DLL 可能还被短暂占用，逐个文件重试。
+            for (var attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    File.Copy(file, dest, overwrite: true);
+                    break;
+                }
+                catch (IOException) when (attempt < 20)
+                {
+                    Thread.Sleep(500);
+                }
+                catch (UnauthorizedAccessException) when (attempt < 20)
+                {
+                    Thread.Sleep(500);
+                }
+            }
         }
     }
 
