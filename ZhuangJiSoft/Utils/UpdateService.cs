@@ -186,6 +186,7 @@ public static class UpdateService
             throw new InvalidOperationException("更新包缺少下载地址。");
         }
 
+        report("正在下载更新包…");
         for (var i = 0; i < urls.Count; i++)
         {
             var (url, isApi) = urls[i];

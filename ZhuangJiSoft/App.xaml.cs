@@ -13,10 +13,11 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
-        // 在线更新的「更新进程」模式：只做文件替换 + 拉起新版，不显示任何窗口
+        // 在线更新的「更新进程」模式：只做文件替换 + 拉起新版，不显示任何窗口。
+        // 注意：Application.StartupUri 的 setter 不接受 null（会抛 ArgumentNullException），
+        // 所以 App.xaml 不声明 StartupUri，主窗口统一由下面的 Show() 创建。
         if (DeskApp.Utils.UpdateService.HandleUpdaterArgs(e.Args))
         {
-            StartupUri = null;
             Shutdown();
             return;
         }
@@ -32,6 +33,8 @@ public partial class App : Application
 
         // 清理两天前的旧更新包目录
         DeskApp.Utils.UpdateService.CleanupOldUpdates();
+
+        new LauncherWindow().Show();
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
