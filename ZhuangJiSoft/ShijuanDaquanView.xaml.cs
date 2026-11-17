@@ -10,8 +10,8 @@ using DeskApp.ViewModels;
 namespace DeskApp;
 
 /// <summary>
-/// 试卷大全下载模块：按站点 /list 的 8 类筛选 + 排序 + 关键词实时浏览，
-/// 勾选批量下载 PDF；支持登录（40 套/天）与未登录（20 套/天），配额以站点数字为准。
+/// 试卷大全下载模块：按站点 /list 的 4 类筛选（学科/年级/学期/版本）+ 排序 + 关键词实时浏览，
+/// 勾选批量下载 PDF；支持登录（40 套/天）与未登录（20 套/天），配额实时取自站点。
 /// 不建表、不做全站扫描，数据管理里没有对应表。
 /// </summary>
 [ToolModule("shijuandaquan", "试卷大全下载", "📄",
@@ -36,8 +36,7 @@ public partial class ShijuanDaquanView : UserControl
 
     private ComboBox[] FilterCombos =>
     [
-        SubjectCombo, GradeCombo, TermCombo, RegionCombo, YearCombo,
-        LevelCombo, VersionCombo, TypeCombo, SortCombo
+        SubjectCombo, GradeCombo, TermCombo, VersionCombo, SortCombo
     ];
 
     private void VM_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -88,6 +87,12 @@ public partial class ShijuanDaquanView : UserControl
         {
             Query_Click(sender, e);
         }
+    }
+
+    /// <summary>点击右上角配额文字，强制回站点读取最新下载次数。</summary>
+    private async void Quota_Click(object sender, RoutedEventArgs e)
+    {
+        await VM.SyncQuotaAsync();
     }
 
     private async void Login_Click(object sender, RoutedEventArgs e)

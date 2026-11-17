@@ -44,33 +44,25 @@
             </Setter>
         </Style>
 
-        <Style x:Key="StatusCellText" TargetType="TextBlock" BasedOn="{StaticResource CellText}">
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding Status}" Value="失败">
-                    <Setter Property="Foreground" Value="#C42B1C"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding Status}" Value="已下载">
-                    <Setter Property="Foreground" Value="#1F8A4C"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-
         <Style x:Key="QuotaLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="#0F6CBD"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding Remaining}" Value="0">
                     <Setter Property="Foreground" Value="#C42B1C"/>
                 </DataTrigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="TextDecorations" Value="Underline"/>
+                </Trigger>
             </Style.Triggers>
         </Style>
     </UserControl.Resources>
 
     <Grid Margin="14,10">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -93,10 +85,11 @@
             <TextBlock Grid.Column="1" Text="按站点筛选浏览，勾选后批量下载 PDF" FontSize="12"
                        Foreground="#5A6472" VerticalAlignment="Center"/>
             <TextBlock Grid.Column="2" Text="{Binding QuotaText}" Style="{StaticResource QuotaLabel}"
-                       HorizontalAlignment="Right" ToolTip="配额由站点按天控制，登录后额度以站点显示为准"/>
+                       HorizontalAlignment="Right" MouseLeftButtonUp="Quota_Click"
+                       ToolTip="点击从站点重新获取今日下载次数（不消耗配额）"/>
         </Grid>
 
-        <!-- 筛选第 1 行：学科 / 年级 / 学期 / 地区 -->
+        <!-- 筛选：学科 / 年级 / 学期 / 版本（地区、年份、种类、类型按需求去掉） -->
         <Grid Grid.Row="1" Margin="0,0,0,6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
@@ -119,45 +112,15 @@
                       ItemsSource="{Binding Terms}" DisplayMemberPath="Name"
                       SelectedItem="{Binding SelectedTerm, Mode=TwoWay}"
                       SelectionChanged="Filter_Changed"/>
-            <TextBlock Grid.Column="6" Text="地区" Style="{StaticResource FieldLabel}" Margin="12,0,6,0"/>
-            <ComboBox x:Name="RegionCombo" Grid.Column="7" Style="{StaticResource AppComboBox}"
-                      ItemsSource="{Binding Regions}" DisplayMemberPath="Name"
-                      SelectedItem="{Binding SelectedRegion, Mode=TwoWay}"
-                      SelectionChanged="Filter_Changed"/>
-        </Grid>
-
-        <!-- 筛选第 2 行：年份 / 种类 / 教材版本 / 试卷类型 -->
-        <Grid Grid.Row="2" Margin="0,0,0,6">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="年份" Style="{StaticResource FieldLabel}" Margin="0,0,6,0"/>
-            <ComboBox x:Name="YearCombo" Grid.Column="1" Style="{StaticResource AppComboBox}"
-                      ItemsSource="{Binding Years}" DisplayMemberPath="Name"
-                      SelectedItem="{Binding SelectedYear, Mode=TwoWay}"
-                      SelectionChanged="Filter_Changed"/>
-            <TextBlock Grid.Column="2" Text="种类" Style="{StaticResource FieldLabel}" Margin="12,0,6,0"/>
-            <ComboBox x:Name="LevelCombo" Grid.Column="3" Style="{StaticResource AppComboBox}"
-                      ItemsSource="{Binding Levels}" DisplayMemberPath="Name"
-                      SelectedItem="{Binding SelectedLevel, Mode=TwoWay}"
-                      SelectionChanged="Filter_Changed"/>
-            <TextBlock Grid.Column="4" Text="版本" Style="{StaticResource FieldLabel}" Margin="12,0,6,0"/>
-            <ComboBox x:Name="VersionCombo" Grid.Column="5" Style="{StaticResource AppComboBox}"
+            <TextBlock Grid.Column="6" Text="版本" Style="{StaticResource FieldLabel}" Margin="12,0,6,0"/>
+            <ComboBox x:Name="VersionCombo" Grid.Column="7" Style="{StaticResource AppComboBox}"
                       ItemsSource="{Binding Versions}" DisplayMemberPath="Name"
                       SelectedItem="{Binding SelectedVersion, Mode=TwoWay}"
-                      SelectionChanged="Filter_Changed"/>
-            <TextBlock Grid.Column="6" Text="类型" Style="{StaticResource FieldLabel}" Margin="12,0,6,0"/>
-            <ComboBox x:Name="TypeCombo" Grid.Column="7" Style="{StaticResource AppComboBox}"
-                      ItemsSource="{Binding Types}" DisplayMemberPath="Name"
-                      SelectedItem="{Binding SelectedType, Mode=TwoWay}"
                       SelectionChanged="Filter_Changed"/>
         </Grid>
 
         <!-- 关键词 / 排序 / 查询 -->
-        <Grid Grid.Row="3" Margin="0,0,0,6">
+        <Grid Grid.Row="2" Margin="0,0,0,6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/><ColumnDefinition Width="260"/>
                 <ColumnDefinition Width="Auto"/><ColumnDefinition Width="130"/>
@@ -182,7 +145,7 @@
         </Grid>
 
         <!-- 登录：未登录 20 套 / 登录 40 套（以站点显示为准） -->
-        <Border Grid.Row="4" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
+        <Border Grid.Row="3" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
                 CornerRadius="6" Padding="10,6" Margin="0,0,0,6">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -210,7 +173,7 @@
         </Border>
 
         <!-- 试卷列表 -->
-        <DataGrid Grid.Row="5" x:Name="PaperGrid" Style="{StaticResource AppDataGrid}"
+        <DataGrid Grid.Row="4" x:Name="PaperGrid" Style="{StaticResource AppDataGrid}"
                   ItemsSource="{Binding PageItems}" CanUserSortColumns="True"
                   MouseRightButtonDown="PaperGrid_MouseRightButtonDown">
             <DataGrid.ContextMenu>
@@ -250,15 +213,11 @@
                                     ElementStyle="{StaticResource CellText}"/>
                 <DataGridTextColumn Header="年份" Width="68" Binding="{Binding Year}"
                                     ElementStyle="{StaticResource CellText}"/>
-                <DataGridTextColumn Header="评分" Width="86" Binding="{Binding Rating}"
-                                    ElementStyle="{StaticResource CellText}"/>
-                <DataGridTextColumn Header="状态" Width="76" Binding="{Binding Status}"
-                                    ElementStyle="{StaticResource StatusCellText}"/>
             </DataGrid.Columns>
         </DataGrid>
 
         <!-- 勾选 / 命名 / 分页 -->
-        <Grid Grid.Row="6" Margin="0,8,0,6">
+        <Grid Grid.Row="5" Margin="0,8,0,6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
@@ -287,7 +246,7 @@
         </Grid>
 
         <!-- 保存目录 / 下载 -->
-        <Grid Grid.Row="7" Margin="0,0,0,6">
+        <Grid Grid.Row="6" Margin="0,0,0,6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
@@ -304,7 +263,7 @@
         </Grid>
 
         <!-- 状态栏 -->
-        <Border Grid.Row="8" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
+        <Border Grid.Row="7" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
                 CornerRadius="6" Padding="10,5">
             <Grid>
                 <Grid.ColumnDefinitions>

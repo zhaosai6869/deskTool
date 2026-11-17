@@ -159,7 +159,10 @@ public static class ShijuanDaquanClient
     /// <summary>读取详情页上的今日剩余下载次数（该请求不消耗下载配额）。</summary>
     public static async Task<SjQuota?> FetchQuotaAsync(int id, int timeoutSeconds, CancellationToken ct)
     {
-        var html = await GetHtmlAsync(ShijuanDaquanCatalog.DetailUrl(id), timeoutSeconds, ct);
+        // 加时间戳参数绕过代理/CDN 缓存，登录、退出、手动同步后必须拿到站点实时额度
+        var url = ShijuanDaquanCatalog.DetailUrl(id) +
+                  "?_=" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var html = await GetHtmlAsync(url, timeoutSeconds, ct);
         var text = Clean(html);
 
         var full = QuotaRegex.Match(text);

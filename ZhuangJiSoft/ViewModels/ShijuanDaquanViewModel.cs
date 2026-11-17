@@ -15,7 +15,7 @@ using DeskApp.Utils;
 namespace DeskApp.ViewModels;
 
 /// <summary>
-/// 试卷大全下载模块（精简版）：按 /list 的 8 类筛选 + 排序 + 关键词实时浏览，
+/// 试卷大全下载模块（精简版）：按 /list 的 4 类筛选（学科/年级/学期/版本）+ 排序 + 关键词实时浏览，
 /// 勾选批量下载 PDF。不建 SQLite 表、不做全站扫描，避免消耗站点每日下载配额。
 /// 配额以详情页「今日还可下载 N 套」为准，本地按天计数仅作兜底。
 /// </summary>
@@ -28,6 +28,7 @@ public partial class ShijuanDaquanViewModel : ObservableObject
 
     private bool _initialized;
     private string _quotaSource = "本地估算";
+    private int _lastQuotaId;
 
     public ShijuanDaquanViewModel()
     {
@@ -39,11 +40,7 @@ public partial class ShijuanDaquanViewModel : ObservableObject
     public ObservableCollection<SjOption> Subjects { get; } = new(ShijuanDaquanCatalog.Subjects);
     public ObservableCollection<SjOption> Grades { get; } = new(ShijuanDaquanCatalog.Grades);
     public ObservableCollection<SjOption> Terms { get; } = new(ShijuanDaquanCatalog.Terms);
-    public ObservableCollection<SjOption> Regions { get; } = new(ShijuanDaquanCatalog.Regions);
-    public ObservableCollection<SjOption> Years { get; } = new(ShijuanDaquanCatalog.Years);
-    public ObservableCollection<SjOption> Levels { get; } = new(ShijuanDaquanCatalog.Levels);
     public ObservableCollection<SjOption> Versions { get; } = new(ShijuanDaquanCatalog.Versions);
-    public ObservableCollection<SjOption> Types { get; } = new(ShijuanDaquanCatalog.Types);
     public ObservableCollection<SjSortOption> Sorts { get; } = new(ShijuanDaquanCatalog.Sorts);
 
     /// <summary>当前页条目（DataGrid 绑定）。</summary>
@@ -57,11 +54,7 @@ public partial class ShijuanDaquanViewModel : ObservableObject
     [ObservableProperty] private SjOption _selectedSubject = ShijuanDaquanCatalog.Subjects[0];
     [ObservableProperty] private SjOption _selectedGrade = ShijuanDaquanCatalog.Grades[0];
     [ObservableProperty] private SjOption _selectedTerm = ShijuanDaquanCatalog.Terms[0];
-    [ObservableProperty] private SjOption _selectedRegion = ShijuanDaquanCatalog.Regions[0];
-    [ObservableProperty] private SjOption _selectedYear = ShijuanDaquanCatalog.Years[0];
-    [ObservableProperty] private SjOption _selectedLevel = ShijuanDaquanCatalog.Levels[0];
     [ObservableProperty] private SjOption _selectedVersion = ShijuanDaquanCatalog.Versions[0];
-    [ObservableProperty] private SjOption _selectedType = ShijuanDaquanCatalog.Types[0];
     [ObservableProperty] private SjSortOption _selectedSort = ShijuanDaquanCatalog.Sorts[0];
     [ObservableProperty] private int _pageIndex = 1;
     [ObservableProperty] private int _pageCount = 1;
@@ -127,11 +120,7 @@ public partial class ShijuanDaquanViewModel : ObservableObject
         Sid = SelectedSubject?.Value ?? 0,
         Grade = SelectedGrade?.Value ?? 0,
         Term = SelectedTerm?.Value ?? 0,
-        Region = SelectedRegion?.Value ?? 0,
-        Year = SelectedYear?.Value ?? 0,
-        Level = SelectedLevel?.Value ?? -1,
         Version = SelectedVersion?.Value ?? 0,
-        Type = SelectedType?.Value ?? 0,
         Sort = SelectedSort?.Key ?? "comprehensive",
         Keyword = Keyword.Trim(),
         Page = Math.Max(1, PageIndex)
@@ -194,6 +183,11 @@ public partial class ShijuanDaquanViewModel : ObservableObject
                 PageItems.Add(item);
             }
 
+            if (PageItems.Count > 0)
+            {
+                _lastQuotaId = PageItems[0].Id;
+            }
+
             TotalCount = page.TotalCount;
             PageCount = Math.Max(1, page.TotalPages);
             if (PageIndex > PageCount)
@@ -215,15 +209,20 @@ public partial class ShijuanDaquanViewModel : ObservableObject
     }
 
     /// <summary>详情页的配额文案是站点真实剩余次数，该请求本身不消耗下载次数。</summary>
-    private async Task RefreshQuotaAsync()
+    /// <returns>true 表示成功从站点读到配额，false 表示退化为本地估算。</returns>
+    private async Task<bool> RefreshQuotaAsync()
     {
-        var first = PageItems.FirstOrDefault();
+        var id = PageItems.FirstOrDefault()?.Id ?? _lastQuotaId;
         SjQuota? quota = null;
-        if (first is not null)
+        if (id > 0)
         {
             try
             {
-                quota = await ShijuanDaquanClient.FetchQuotaAsync(first.Id, 30, CancellationToken.None);
+                quota = await ShijuanDaquanClient.FetchQuotaAsync(id, 30, CancellationToken.None);
+                if (quota is not null)
+                {
+                    _lastQuotaId = id;
+                }
             }
             catch
             {
@@ -255,6 +254,34 @@ public partial class ShijuanDaquanViewModel : ObservableObject
         Config.LastQuotaDate = DateTime.Now.ToString("yyyy-MM-dd");
         Config.Save();
         UpdateQuotaText();
+        return quota is not null;
+    }
+
+    /// <summary>点击右上角配额文字时调用：强制回站点同步今日下载次数。</summary>
+    public async Task SyncQuotaAsync()
+    {
+        if (Busy)
+        {
+            StatusText = "正在处理其他任务，请稍后再同步配额";
+            return;
+        }
+
+        Busy = true;
+        try
+        {
+            var ok = await RefreshQuotaAsync();
+            StatusText = ok
+                ? $"已从站点同步下载配额：今日还可下载 {Remaining} 套"
+                : "站点配额读取失败，当前显示本地估算值";
+        }
+        catch (Exception ex)
+        {
+            StatusText = "同步配额失败：" + ex.Message;
+        }
+        finally
+        {
+            Busy = false;
+        }
     }
 
     private void UpdateQuotaText()
@@ -286,8 +313,10 @@ public partial class ShijuanDaquanViewModel : ObservableObject
             {
                 Config.AutoLogin = true;
                 SaveSettings();
-                await RefreshQuotaAsync();
-                StatusText = "登录成功，下载配额已刷新";
+                var quotaOk = await RefreshQuotaAsync();
+                StatusText = quotaOk
+                    ? "登录成功，已从站点同步下载配额"
+                    : "登录成功，但配额同步失败（当前为本地估算）";
             }
 
             MessageBox.Show(owner, result.Message, "试卷大全下载",
@@ -306,12 +335,34 @@ public partial class ShijuanDaquanViewModel : ObservableObject
 
     public async Task LogoutAsync(Window? owner)
     {
+        if (Busy)
+        {
+            return;
+        }
+
         ShijuanDaquanClient.Logout();
         IsLoggedIn = false;
         Config.AutoLogin = false;
         SaveSettings();
-        await RefreshQuotaAsync();
-        StatusText = "已退出登录";
+
+        Busy = true;
+        bool quotaOk;
+        try
+        {
+            quotaOk = await RefreshQuotaAsync();
+        }
+        catch
+        {
+            quotaOk = false;
+        }
+        finally
+        {
+            Busy = false;
+        }
+
+        StatusText = quotaOk
+            ? "已退出登录，已从站点同步下载配额"
+            : "已退出登录，配额同步失败（当前为本地估算）";
         if (owner is not null)
         {
             MessageBox.Show(owner, "已退出登录，后续按未登录配额下载", "试卷大全下载",
