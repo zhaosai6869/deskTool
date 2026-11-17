@@ -536,10 +536,10 @@ public class FirstPaperViewModel : ObservableObject
                     var fileName = BuildFileName(record) + extension;
                     var target = UniqueTarget(Config.DownloadDir, fileName);
 
+                    var cacheDir = Path.Combine(AppContext.BaseDirectory, "data", "firstpaper_cache");
                     SetRecordStatus(record, "下载中");
                     var bytes = await FirstPaperClient.DownloadFileAsync(
-                        record.DownloadUrl, target,
-                        Path.Combine(AppContext.BaseDirectory, "data", "firstpaper_cache"),
+                        record.DownloadUrl, target, cacheDir,
                         Config.TimeoutSeconds,
                         (done, total, text) =>
                         {
@@ -549,7 +549,41 @@ public class FirstPaperViewModel : ObservableObject
 
                     record.FileName = Path.GetFileName(target);
                     record.Bytes = bytes;
-                    SetRecordStatus(record, "已下载");
+
+                    if (FirstPaperExtractor.IsArchive(target))
+                    {
+                        SetRecordStatus(record, "解压中");
+                        var extract = await FirstPaperExtractor.ExtractOfficeFilesAsync(
+                            target, Config.DownloadDir, cacheDir,
+                            text => SetRecordStatus(record, text), CancellationToken.None);
+
+                        if (extract.Success)
+                        {
+                            // 只在确认 Office 文件已落到下载目录后才删压缩包，解压失败时保留原包
+                            try
+                            {
+                                File.Delete(target);
+                            }
+                            catch (Exception ex)
+                            {
+                                record.Error = "Office 已提取，但压缩包删除失败：" + ex.Message;
+                            }
+
+                            record.FileName = Path.GetFileName(extract.Files[0]);
+                            record.Bytes = extract.TotalBytes;
+                            SetRecordStatus(record, "已提取");
+                        }
+                        else
+                        {
+                            SetRecordStatus(record, "已下载（未提取）");
+                            record.Error = extract.Error ?? "解压失败";
+                        }
+                    }
+                    else
+                    {
+                        SetRecordStatus(record, "已下载");
+                    }
+
                     record.FinishedAt = DateTime.Now;
                     SaveRecord(record);
                     return true;
