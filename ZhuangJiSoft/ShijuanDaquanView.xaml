@@ -5,36 +5,316 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              mc:Ignorable="d"
-             d:DesignHeight="560" d:DesignWidth="920">
+             d:DesignHeight="600" d:DesignWidth="920">
 
-    <Grid Margin="16">
+    <UserControl.Resources>
+        <Style x:Key="PrimaryBlueButton" TargetType="ui:Button">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#0F6CBD"/>
+            <Setter Property="BorderBrush" Value="#0F6CBD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ui:Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#0B5AA6"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#0B5AA6"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#084B8A"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="StatusCellText" TargetType="TextBlock" BasedOn="{StaticResource CellText}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Status}" Value="失败">
+                    <Setter Property="Foreground" Value="#C42B1C"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Status}" Value="已下载">
+                    <Setter Property="Foreground" Value="#1F8A4C"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="QuotaLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#0F6CBD"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Remaining}" Value="0">
+                    <Setter Property="Foreground" Value="#C42B1C"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="14,10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 标题 + 说明 -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-            <ui:TextBlock Text="试卷大全下载" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"
-                          Margin="0,0,16,0" Foreground="#1F1F1F"/>
-            <TextBlock Text="功能开发中，页面已预留" FontSize="13"
+        <!-- 标题 + 今日配额 -->
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="试卷大全下载" FontSize="20" FontWeight="Bold"
+                       Foreground="#1F1F1F" VerticalAlignment="Center" Margin="0,0,12,0"/>
+            <TextBlock Grid.Column="1" Text="按站点筛选浏览，勾选后批量下载 PDF" FontSize="12"
                        Foreground="#5A6472" VerticalAlignment="Center"/>
-        </StackPanel>
+            <TextBlock Grid.Column="2" Text="{Binding QuotaText}" Style="{StaticResource QuotaLabel}"
+                       HorizontalAlignment="Right" ToolTip="配额由站点按天控制，登录后额度以站点显示为准"/>
+        </Grid>
 
-        <Border Grid.Row="1" Height="1" Background="#E5E9F0" Margin="0,0,0,12"/>
+        <!-- 筛选第 1 行：学科 / 年级 / 学期 / 地区 -->
+        <Grid Grid.Row="1" Margin="0,0,0,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="学科" Style="{StaticResource FieldLabel}" Margin="0,0,6,0"/>
+            <ComboBox x:Name="SubjectCombo" Grid.Column="1" Style="{StaticResource AppComboBox}"
+                      ItemsSource="{Binding Subjects}" DisplayMemberPath="Name"
+                      SelectedItem="{Binding SelectedSubject, Mode=TwoWay}"
+                      SelectionChanged="Filter_Changed"/>
+            <TextBlock Grid.Column="2" Text="年级" Style="{StaticResource FieldLabel}" Margin="12,0,6,0"/>
+            <ComboBox x:Name="GradeCombo" Grid.Column="3" Style="{StaticResource AppComboBox}"
+                      ItemsSource="{Binding Grades}" DisplayMemberPath="Name"
+                      SelectedItem="{Binding SelectedGrade, Mode=TwoWay}"
+                      SelectionChanged="Filter_Changed"/>
+            <TextBlock Grid.Column="4" Text="学期" Style="{StaticResource FieldLabel}" Margin="12,0,6,0"/>
+            <ComboBox x:Name="TermCombo" Grid.Column="5" Style="{StaticResource AppComboBox}"
+                      ItemsSource="{Binding Terms}" DisplayMemberPath="Name"
+                      SelectedItem="{Binding SelectedTerm, Mode=TwoWay}"
+                      SelectionChanged="Filter_Changed"/>
+            <TextBlock Grid.Column="6" Text="地区" Style="{StaticResource FieldLabel}" Margin="12,0,6,0"/>
+            <ComboBox x:Name="RegionCombo" Grid.Column="7" Style="{StaticResource AppComboBox}"
+                      ItemsSource="{Binding Regions}" DisplayMemberPath="Name"
+                      SelectedItem="{Binding SelectedRegion, Mode=TwoWay}"
+                      SelectionChanged="Filter_Changed"/>
+        </Grid>
 
-        <!-- 占位内容：只预留位置，下载逻辑后续接入 -->
-        <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#E5E9F0" BorderThickness="1"
-                CornerRadius="8" Padding="48,36"
-                VerticalAlignment="Center" HorizontalAlignment="Center">
-            <StackPanel HorizontalAlignment="Center">
-                <TextBlock Text="📄" FontSize="40" HorizontalAlignment="Center"/>
-                <TextBlock Text="模块功能开发中" FontSize="16" FontWeight="SemiBold"
-                           Foreground="#1F1F1F" HorizontalAlignment="Center" Margin="0,12,0,0"/>
-                <TextBlock Text="这里将接入试卷资源下载能力，敬请期待" FontSize="13"
-                           Foreground="#5A6472" HorizontalAlignment="Center" Margin="0,6,0,0"/>
-            </StackPanel>
+        <!-- 筛选第 2 行：年份 / 种类 / 教材版本 / 试卷类型 -->
+        <Grid Grid.Row="2" Margin="0,0,0,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="年份" Style="{StaticResource FieldLabel}" Margin="0,0,6,0"/>
+            <ComboBox x:Name="YearCombo" Grid.Column="1" Style="{StaticResource AppComboBox}"
+                      ItemsSource="{Binding Years}" DisplayMemberPath="Name"
+                      SelectedItem="{Binding SelectedYear, Mode=TwoWay}"
+                      SelectionChanged="Filter_Changed"/>
+            <TextBlock Grid.Column="2" Text="种类" Style="{StaticResource FieldLabel}" Margin="12,0,6,0"/>
+            <ComboBox x:Name="LevelCombo" Grid.Column="3" Style="{StaticResource AppComboBox}"
+                      ItemsSource="{Binding Levels}" DisplayMemberPath="Name"
+                      SelectedItem="{Binding SelectedLevel, Mode=TwoWay}"
+                      SelectionChanged="Filter_Changed"/>
+            <TextBlock Grid.Column="4" Text="版本" Style="{StaticResource FieldLabel}" Margin="12,0,6,0"/>
+            <ComboBox x:Name="VersionCombo" Grid.Column="5" Style="{StaticResource AppComboBox}"
+                      ItemsSource="{Binding Versions}" DisplayMemberPath="Name"
+                      SelectedItem="{Binding SelectedVersion, Mode=TwoWay}"
+                      SelectionChanged="Filter_Changed"/>
+            <TextBlock Grid.Column="6" Text="类型" Style="{StaticResource FieldLabel}" Margin="12,0,6,0"/>
+            <ComboBox x:Name="TypeCombo" Grid.Column="7" Style="{StaticResource AppComboBox}"
+                      ItemsSource="{Binding Types}" DisplayMemberPath="Name"
+                      SelectedItem="{Binding SelectedType, Mode=TwoWay}"
+                      SelectionChanged="Filter_Changed"/>
+        </Grid>
+
+        <!-- 关键词 / 排序 / 查询 -->
+        <Grid Grid.Row="3" Margin="0,0,0,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="260"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="130"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="关键词" Style="{StaticResource FieldLabel}" Margin="0,0,6,0"/>
+            <TextBox x:Name="KeywordBox" Grid.Column="1" Style="{StaticResource Input}"
+                     Text="{Binding Keyword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="站点全文搜索；搜索页不支持与左侧筛选组合" KeyDown="KeywordBox_KeyDown"/>
+            <TextBlock Grid.Column="2" Text="排序" Style="{StaticResource FieldLabel}" Margin="12,0,6,0"/>
+            <ComboBox x:Name="SortCombo" Grid.Column="3" Style="{StaticResource AppComboBox}"
+                      ItemsSource="{Binding Sorts}" DisplayMemberPath="Name"
+                      SelectedItem="{Binding SelectedSort, Mode=TwoWay}"
+                      SelectionChanged="Filter_Changed"/>
+            <ui:Button x:Name="QueryBtn" Grid.Column="4" Content="查询" Style="{StaticResource PrimaryBlueButton}"
+                       Width="80" Margin="12,0,0,0" Click="Query_Click"/>
+            <TextBlock Grid.Column="5" FontSize="12" Foreground="#5A6472"
+                       HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0">
+                <Run Text="本页 "/><Run Text="{Binding PageItems.Count, Mode=OneWay}"/>
+                <Run Text=" / 全站 "/><Run Text="{Binding TotalCount, StringFormat=N0, Mode=OneWay}"/><Run Text=" 套"/>
+            </TextBlock>
+        </Grid>
+
+        <!-- 登录：未登录 20 套 / 登录 40 套（以站点显示为准） -->
+        <Border Grid.Row="4" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
+                CornerRadius="6" Padding="10,6" Margin="0,0,0,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/><ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="Auto"/><ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="用户名" Style="{StaticResource FieldLabel}" Margin="0,0,6,0"/>
+                <TextBox Grid.Column="1" Style="{StaticResource Input}"
+                         Text="{Binding Username, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Grid.Column="2" Text="密码" Style="{StaticResource FieldLabel}" Margin="12,0,6,0"/>
+                <TextBox Grid.Column="3" Style="{StaticResource Input}"
+                         Text="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="按项目习惯明文显示；仅保存在本机 data\shijuandaquan_config.json"/>
+                <ui:Button x:Name="LoginBtn" Grid.Column="4" Content="登录" Style="{StaticResource PrimaryBlueButton}"
+                           Width="70" Margin="12,0,0,0" Click="Login_Click"/>
+                <ui:Button x:Name="LogoutBtn" Grid.Column="5" Content="退出" Style="{StaticResource ActionButton}"
+                           Height="32" Padding="10,0" Margin="6,0,0,0" Click="Logout_Click"/>
+                <TextBlock Grid.Column="6" FontSize="12" Foreground="#5A6472" VerticalAlignment="Center"
+                           HorizontalAlignment="Right" Margin="12,0,0,0">
+                    <Run Text="未登录 20 套/天 · 登录 40 套/天（以站点显示为准）"/>
+                </TextBlock>
+            </Grid>
+        </Border>
+
+        <!-- 试卷列表 -->
+        <DataGrid Grid.Row="5" x:Name="PaperGrid" Style="{StaticResource AppDataGrid}"
+                  ItemsSource="{Binding PageItems}" CanUserSortColumns="True"
+                  MouseRightButtonDown="PaperGrid_MouseRightButtonDown">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="下载当前试卷" Click="DownloadCurrent_Click"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                    <EventSetter Event="PreviewMouseLeftButtonDown" Handler="Row_PreviewMouseLeftButtonDown"/>
+                </Style>
+            </DataGrid.RowStyle>
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="" Width="38" CanUserSort="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox Style="{StaticResource ModuleCheckBox}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      IsHitTestVisible="False"
+                                      IsChecked="{Binding IsSelected, Mode=OneWay}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="试卷标题" Width="*" Binding="{Binding Title}"
+                                    ElementStyle="{StaticResource CellText}">
+                    <DataGridTextColumn.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="ToolTip" Value="{Binding Error}"/>
+                        </Style>
+                    </DataGridTextColumn.CellStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="版本" Width="90" Binding="{Binding Version}"
+                                    ElementStyle="{StaticResource CellText}"/>
+                <DataGridTextColumn Header="年级" Width="100" Binding="{Binding Grade}"
+                                    ElementStyle="{StaticResource CellText}"/>
+                <DataGridTextColumn Header="类型" Width="84" Binding="{Binding PaperType}"
+                                    ElementStyle="{StaticResource CellText}"/>
+                <DataGridTextColumn Header="年份" Width="68" Binding="{Binding Year}"
+                                    ElementStyle="{StaticResource CellText}"/>
+                <DataGridTextColumn Header="评分" Width="86" Binding="{Binding Rating}"
+                                    ElementStyle="{StaticResource CellText}"/>
+                <DataGridTextColumn Header="状态" Width="76" Binding="{Binding Status}"
+                                    ElementStyle="{StaticResource StatusCellText}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- 勾选 / 命名 / 分页 -->
+        <Grid Grid.Row="6" Margin="0,8,0,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ui:Button x:Name="SelectAllBtn" Grid.Column="0" Content="全选本页" Style="{StaticResource ActionButton}"
+                       Height="30" Padding="10,0" Click="SelectAll_Click"/>
+            <ui:Button x:Name="ClearSelectBtn" Grid.Column="1" Content="取消全选" Style="{StaticResource ActionButton}"
+                       Height="30" Padding="10,0" Margin="8,0,0,0" Click="ClearSelection_Click"/>
+            <TextBlock Grid.Column="2" FontSize="13" Foreground="#0F6CBD" VerticalAlignment="Center" Margin="12,0,0,0">
+                <Run Text="已选 "/><Run Text="{Binding SelectedCount, Mode=OneWay}"/><Run Text=" 份"/>
+            </TextBlock>
+            <TextBlock Grid.Column="3" Text="命名规则" Style="{StaticResource FieldLabel}" Margin="16,0,6,0"/>
+            <TextBox Grid.Column="4" Style="{StaticResource Input}"
+                     Text="{Binding NameTemplate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="支持 [标题] [版本] [年级] [类型] [年份] [日期] [编号]"/>
+            <ui:Button x:Name="PrevBtn" Grid.Column="5" Content="上一页" Style="{StaticResource ActionButton}"
+                       Height="30" Padding="10,0" Margin="10,0,0,0" Click="Prev_Click"/>
+            <TextBlock Grid.Column="6" VerticalAlignment="Center" Margin="8,0" FontSize="12" Foreground="#1F1F1F">
+                <Run Text="{Binding PageIndex, Mode=OneWay}"/><Run Text=" / "/>
+                <Run Text="{Binding PageCount, Mode=OneWay}"/>
+            </TextBlock>
+            <ui:Button x:Name="NextBtn" Grid.Column="7" Content="下一页" Style="{StaticResource ActionButton}"
+                       Height="30" Padding="10,0" Click="Next_Click"/>
+        </Grid>
+
+        <!-- 保存目录 / 下载 -->
+        <Grid Grid.Row="7" Margin="0,0,0,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="保存到" Style="{StaticResource FieldLabel}" Margin="0,0,6,0"/>
+            <TextBox Grid.Column="1" Style="{StaticResource Input}"
+                     Text="{Binding DownloadDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+            <ui:Button x:Name="BrowseBtn" Grid.Column="2" Content="浏览..." Style="{StaticResource ActionButton}"
+                       Height="32" Padding="12,0" Margin="8,0,0,0" Click="Browse_Click"/>
+            <ui:Button x:Name="OpenDirBtn" Grid.Column="3" Content="打开文件夹" Style="{StaticResource ActionButton}"
+                       Height="32" Padding="12,0" Margin="6,0,0,0" Click="OpenDir_Click"/>
+            <ui:Button x:Name="DownloadBtn" Grid.Column="4" Content="开始下载" Style="{StaticResource PrimaryBlueButton}"
+                       Width="110" Margin="10,0,0,0" Click="Download_Click"/>
+        </Grid>
+
+        <!-- 状态栏 -->
+        <Border Grid.Row="8" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
+                CornerRadius="6" Padding="10,5">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding StatusText}" FontSize="12" Foreground="#5A6472"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="1" Text="资源版权归原站点及上传者所有" FontSize="11"
+                           Foreground="#8A94A3" VerticalAlignment="Center"/>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>
