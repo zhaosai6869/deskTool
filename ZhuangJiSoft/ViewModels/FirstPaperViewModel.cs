@@ -442,16 +442,27 @@ public class FirstPaperViewModel : ObservableObject
         throw new SphException("列表页多次请求失败：" + url);
     }
 
-    /// <summary>批量下载勾选条目。单条失败不中断批次，最终汇总。</summary>
+    /// <summary>下载当前勾选的全部条目。</summary>
     public async Task DownloadSelectedAsync(Window? owner)
+    {
+        var selected = _cache.Where(r => r.IsSelected).ToList();
+        await DownloadRecordsAsync(selected, owner, clearSelectionAfter: true);
+    }
+
+    /// <summary>
+    /// 下载指定条目（批量勾选或右键单条都走这里）。单条失败不中断批次，最终汇总。
+    /// clearSelectionAfter=true 时下载完成后自动取消该行勾选。
+    /// </summary>
+    public async Task DownloadRecordsAsync(
+        IEnumerable<FirstPaperRecord> records, Window? owner, bool clearSelectionAfter)
     {
         if (Busy)
         {
             return;
         }
 
-        var selected = _cache.Where(r => r.IsSelected).ToList();
-        if (selected.Count == 0)
+        var list = records.ToList();
+        if (list.Count == 0)
         {
             PromptDialog.Show(owner, "请先勾选要下载的试卷。", "提示");
             return;
@@ -463,10 +474,10 @@ public class FirstPaperViewModel : ObservableObject
         try
         {
             Directory.CreateDirectory(Config.DownloadDir);
-            for (var i = 0; i < selected.Count; i++)
+            for (var i = 0; i < list.Count; i++)
             {
-                var record = selected[i];
-                Ui(() => StatusText = $"正在下载 {i + 1}/{selected.Count}：{record.Title}");
+                var record = list[i];
+                Ui(() => StatusText = $"正在下载 {i + 1}/{list.Count}：{record.Title}");
                 var result = await DownloadOneAsync(record);
                 if (result)
                 {
@@ -477,17 +488,20 @@ public class FirstPaperViewModel : ObservableObject
                     failed++;
                 }
 
-                Ui(() => record.IsSelected = false);
-                RefreshSelectionCountOnUi();
+                if (clearSelectionAfter)
+                {
+                    Ui(() => record.IsSelected = false);
+                    RefreshSelectionCountOnUi();
+                }
             }
 
-            StatusText = $"下载完成：成功 {ok} 份，失败 {failed} 份";
-            PromptDialog.Show(owner, StatusText, "下载完成", MessageBoxButton.OK,
-                failed > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
+            Ui(() => StatusText = $"下载完成：成功 {ok} 份，失败 {failed} 份");
+            Ui(() => PromptDialog.Show(owner, StatusText, "下载完成", MessageBoxButton.OK,
+                failed > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information));
         }
         catch (Exception ex)
         {
-            StatusText = "下载过程出错：" + ex.Message;
+            Ui(() => StatusText = "下载过程出错：" + ex.Message);
             Ui(() => PromptDialog.Show(owner, StatusText, "下载失败",
                 MessageBoxButton.OK, MessageBoxImage.Error));
         }

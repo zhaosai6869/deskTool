@@ -142,15 +142,27 @@
 
         <!-- 题库列表 -->
         <DataGrid Grid.Row="3" x:Name="PaperGrid" Style="{StaticResource AppDataGrid}"
-                  ItemsSource="{Binding PageItems}" CanUserSortColumns="True">
+                  ItemsSource="{Binding PageItems}" CanUserSortColumns="True"
+                  MouseRightButtonDown="PaperGrid_MouseRightButtonDown">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="下载当前试卷" Click="DownloadCurrent_Click"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                    <EventSetter Event="PreviewMouseLeftButtonDown" Handler="Row_PreviewMouseLeftButtonDown"/>
+                </Style>
+            </DataGrid.RowStyle>
             <DataGrid.Columns>
                 <DataGridTemplateColumn Header="" Width="42" CanUserSort="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
+                            <!-- 勾选统一由行点击处理；禁用 CheckBox 命中测试，避免同一点击切换两次 -->
                             <CheckBox Style="{StaticResource ModuleCheckBox}"
                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                      Click="RowCheck_Click"/>
+                                      IsHitTestVisible="False"
+                                      IsChecked="{Binding IsSelected, Mode=OneWay}"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
@@ -162,8 +174,6 @@
                                     ElementStyle="{StaticResource CellText}"/>
                 <DataGridTextColumn Header="上传日期" Width="110" Binding="{Binding TimeText}"
                                     ElementStyle="{StaticResource CellText}"/>
-                <DataGridTextColumn Header="状态" Width="110" Binding="{Binding Status}"
-                                    ElementStyle="{StaticResource PaperStatusText}"/>
             </DataGrid.Columns>
         </DataGrid>
 

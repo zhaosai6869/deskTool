@@ -4,6 +4,8 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using DeskApp.Models;
 using DeskApp.Utils;
 using DeskApp.ViewModels;
 
@@ -17,6 +19,7 @@ namespace DeskApp;
 public partial class FirstPaperView : UserControl
 {
     private bool _loaded;
+    private FirstPaperRecord? _contextRecord;
 
     public FirstPaperView()
     {
@@ -107,9 +110,50 @@ public partial class FirstPaperView : UserControl
         VM.Query(string.Empty, VersionCombo.SelectedItem?.ToString() ?? "全部");
     }
 
-    private void RowCheck_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// 左键点行即切换该行勾选。CheckBox 已禁用命中测试，所以点方框和点行都会走到这里，
+    /// 只切换一次，彻底避开「CheckBox 绑定更新时机」造成的计数不准 / 取消失效。
+    /// </summary>
+    private void Row_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (VM.Busy || sender is not DataGridRow row || row.Item is not FirstPaperRecord record)
+        {
+            return;
+        }
+
+        record.IsSelected = !record.IsSelected;
         VM.RefreshSelectionCount();
+    }
+
+    private void PaperGrid_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        DependencyObject? dep = e.OriginalSource as DependencyObject;
+        while (dep is not null && dep is not DataGridRow)
+        {
+            dep = VisualTreeHelper.GetParent(dep);
+        }
+
+        if (dep is DataGridRow row && row.Item is FirstPaperRecord record)
+        {
+            _contextRecord = record;
+            PaperGrid.SelectedItem = record;
+        }
+        else
+        {
+            _contextRecord = null;
+        }
+    }
+
+    private async void DownloadCurrent_Click(object sender, RoutedEventArgs e)
+    {
+        if (_contextRecord is null)
+        {
+            return;
+        }
+
+        VM.SaveSettings();
+        await VM.DownloadRecordsAsync(new[] { _contextRecord }, Window.GetWindow(this),
+            clearSelectionAfter: false);
     }
 
     private void SelectAll_Click(object sender, RoutedEventArgs e)
