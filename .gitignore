@@ -8,8 +8,8 @@
 *.suo
 *.DotSettings.user
 
-# 运行时数据与缓存（若从 bin 拷出）
-data/
+# 运行时数据与缓存（只忽略仓库根目录的 data，源码目录 ZhuangJiSoft/Data/ 必须入库）
+/data/
 *_cache/
 
 # 发版产物（zip 上传到 GitHub Release，不入库）

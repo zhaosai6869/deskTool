@@ -21,6 +21,8 @@
     <PackageReference Include="SSH.NET" Version="2026.0.1" />
     <PackageReference Include="FluentFTP" Version="52.1.0" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+    <!-- 第一试卷网为 gb2312/gb18030 编码，需要 CodePages 提供 GB18030 -->
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
