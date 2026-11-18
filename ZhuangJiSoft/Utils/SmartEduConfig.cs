@@ -28,21 +28,44 @@ public sealed class SmartEduConfig
     public static string ConfigPath => Path.Combine(
         AppContext.BaseDirectory, "data", "smartedu_config.json");
 
+    /// <summary>与其他下载模块一致：默认保存到 用户下载目录\国家中小学智慧教育平台。</summary>
+    public static string DefaultDownloadDir => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        "Downloads", "国家中小学智慧教育平台");
+
     public static SmartEduConfig Load()
     {
+        var config = new SmartEduConfig { DownloadDir = DefaultDownloadDir };
         try
         {
             if (!File.Exists(ConfigPath))
             {
-                return new SmartEduConfig();
+                return config;
             }
 
-            return JsonSerializer.Deserialize<SmartEduConfig>(
-                       File.ReadAllText(ConfigPath), JsonOptions) ?? new SmartEduConfig();
+            var saved = JsonSerializer.Deserialize<SmartEduConfig>(
+                            File.ReadAllText(ConfigPath), JsonOptions);
+            if (saved is null)
+            {
+                return config;
+            }
+
+            // 目录为空时也回退到默认值，避免下载到程序目录或空路径导致保存失败
+            config.DownloadDir = string.IsNullOrWhiteSpace(saved.DownloadDir)
+                ? DefaultDownloadDir
+                : saved.DownloadDir;
+            config.NameTemplate = string.IsNullOrWhiteSpace(saved.NameTemplate)
+                ? "[标题]"
+                : saved.NameTemplate;
+            config.AccessToken = saved.AccessToken ?? string.Empty;
+            config.MacKey = saved.MacKey ?? string.Empty;
+            config.TokenDiff = saved.TokenDiff;
+            config.LastCatalogRefresh = saved.LastCatalogRefresh ?? string.Empty;
+            return config;
         }
         catch
         {
-            return new SmartEduConfig();
+            return config;
         }
     }
 

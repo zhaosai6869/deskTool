@@ -330,6 +330,11 @@ public partial class SmartEduViewModel : ObservableObject
 
     public void SaveSettings()
     {
+        // 目录为空时回退默认，避免后续下载写空路径导致「保存失败」
+        if (string.IsNullOrWhiteSpace(DownloadDir))
+        {
+            DownloadDir = SmartEduConfig.DefaultDownloadDir;
+        }
         Config.DownloadDir = DownloadDir.Trim();
         Config.NameTemplate = string.IsNullOrWhiteSpace(NameTemplate) ? "[标题]" : NameTemplate.Trim();
         Config.Save();

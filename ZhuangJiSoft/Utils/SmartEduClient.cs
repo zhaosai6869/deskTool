@@ -416,7 +416,11 @@ public static class SmartEduClient
     private static string EscapeUrl(string url)
     {
         var uri = new System.Uri(url);
-        var escapedPath = string.Join("/", uri.AbsolutePath.Split('/').Select(Uri.EscapeDataString));
+        // Uri.AbsolutePath 已把中文编码成 %XX，直接 EscapeDataString 会把 % 再编码成 %25，
+        // 造成双重编码，服务器解码后的路径与签名原文(Unescape 后的中文)不一致 -> 401/403。
+        // 先解码回原始字符，再逐段编码一次。
+        var decodedPath = System.Uri.UnescapeDataString(uri.AbsolutePath);
+        var escapedPath = string.Join("/", decodedPath.Split('/').Select(Uri.EscapeDataString));
         return uri.GetLeftPart(System.UriPartial.Authority) + escapedPath +
                (uri.Query.Length > 0 ? uri.Query : string.Empty);
     }
