@@ -18,23 +18,34 @@ public partial class SmartEduLoginWindow : FluentWindow
     private const string LoginUrl = "https://auth.smartedu.cn/uias/login";
     private const string TokenKeyPattern = "^ND_UC_AUTH-.*&ncet-xedu&token$";
 
-    // 平台登录后可能把 token 写在 basic.smartedu.cn 或 auth.smartedu.cn 任一域下
+    // 注意：ExecuteScriptAsync 会把脚本返回值再做一次 JSON 序列化。
+    // 这里直接返回 JS 对象（不要用 JSON.stringify），C# 侧只需反序列化一次。
+    // 若返回字符串会出现双重编码，导致 GetField 拿到 String 而非 Object。
     private const string ReadTokenScript = @"(function(){
-        var keys = Object.keys(localStorage);
-        var key = keys.find(k => /^ND_UC_AUTH-.*&ncet-xedu&token$/.test(k))
-               || keys.find(k => /^ND_UC_AUTH-.*&token$/.test(k));
-        if (!key) return null;
         try {
-            var wrapper = JSON.parse(localStorage.getItem(key));
-            var value = wrapper && wrapper.value ? wrapper.value : localStorage.getItem(key);
-            var token = JSON.parse(value);
-            return JSON.stringify({
-                access_token: token.access_token || '',
-                mac_key: token.mac_key || '',
-                diff: token.diff || 0,
-                key: key
-            });
-        } catch (e) { return null; }
+            var keys = Object.keys(localStorage);
+            // 官方格式：ND_UC_AUTH-{uid}&{app}&token；宽松兜底以兼容改版
+            var key = keys.find(k => /^ND_UC_AUTH-.*&ncet-xedu&token$/.test(k))
+                   || keys.find(k => /^ND_UC_AUTH-[^&]+&[^&]+&token$/.test(k))
+                   || keys.find(k => /^ND_UC_AUTH-.*&token$/.test(k));
+            var info = { host: location.hostname, keyCount: keys.length, found: !!key };
+            if (!key) {
+                info.sample = keys.slice(0, 5).map(k => k.length > 44 ? k.slice(0, 44) + '…' : k);
+                return info;
+            }
+            info.key = key;
+            var raw = localStorage.getItem(key);
+            var wrapper = JSON.parse(raw);
+            var value = (wrapper && wrapper.value) ? wrapper.value : raw;
+            var token = (typeof value === 'string') ? JSON.parse(value) : value;
+            info.access_token = token.access_token || '';
+            info.mac_key = token.mac_key || '';
+            info.diff = token.diff || 0;
+            info.ok = info.access_token.length > 0 && info.mac_key.length > 0;
+            return info;
+        } catch (e) {
+            return { host: location.hostname, error: String(e) };
+        }
     })()";
 
     private CancellationTokenSource? _polling;
@@ -98,7 +109,27 @@ public partial class SmartEduLoginWindow : FluentWindow
 
                     if (!string.IsNullOrWhiteSpace(result) && result != "null")
                     {
-                        var json = JsonSerializer.Deserialize<JsonElement>(result);
+                        JsonElement json;
+                        try
+                        {
+                            json = JsonSerializer.Deserialize<JsonElement>(result);
+                        }
+                        catch
+                        {
+                            continue;
+                        }
+
+                        // 兼容历史双重编码：若最外层是字符串，再解一层
+                        if (json.ValueKind == JsonValueKind.String)
+                        {
+                            var inner = json.GetString();
+                            if (!string.IsNullOrWhiteSpace(inner))
+                            {
+                                try { json = JsonSerializer.Deserialize<JsonElement>(inner); }
+                                catch { /* 保留原值，下面字段读取会落空 */ }
+                            }
+                        }
+
                         var access = GetField(json, "access_token");
                         var mac = GetField(json, "mac_key");
                         var diff = GetField(json, "diff");
@@ -119,6 +150,18 @@ public partial class SmartEduLoginWindow : FluentWindow
                             });
                             return;
                         }
+
+                        // 未取到时回报诊断信息，便于判断是未登录还是域/key 不匹配
+                        var host = GetField(json, "host");
+                        var err = GetField(json, "error");
+                        var found = GetField(json, "found");
+                        var sample = GetField(json, "sample");
+                        var tip = !string.IsNullOrEmpty(err)
+                            ? "读取凭据出错：" + err
+                            : found.Equals("false", StringComparison.OrdinalIgnoreCase)
+                                ? "当前页(" + host + ")未发现凭据，localStorage: " + sample
+                                : "凭据字段不完整（域 " + host + "）";
+                        await Dispatcher.InvokeAsync(() => StatusText.Text = "等待登录… " + tip);
                     }
                 }
                 catch

@@ -30,7 +30,7 @@
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
             <ui:Button Content="取消" Style="{StaticResource ActionButton}" Height="32" Padding="14,0"
                        Click="Cancel_Click"/>
-            <ui:Button Content="保存" Style="{StaticResource PrimaryBlueButton}" Height="32" Padding="16,0"
+            <ui:Button Content="保存" Appearance="Primary" Height="32" Padding="16,0"
                        Margin="8,0,0,0" Click="Save_Click"/>
         </StackPanel>
     </Grid>
