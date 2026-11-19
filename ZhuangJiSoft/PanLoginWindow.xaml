@@ -18,7 +18,7 @@
             <StackPanel>
                 <TextBlock x:Name="TitleText" Text="网盘登录" FontSize="16" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
-                <TextBlock x:Name="TipText" Text="请在官方页面中完成登录（扫码 / 账号密码 / 短信均可），登录后程序会自动读取凭据。"
+                <TextBlock x:Name="TipText" Text="请在官方页面中完成登录（扫码 / 账号密码 / 短信均可）。登录成功后会自动检测并保存凭据，也可手动点「保存凭据」。"
                            FontSize="12" Foreground="#5A6472" Margin="0,6,0,0" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -43,7 +43,7 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <ui:Button Content="重新加载" Style="{StaticResource ActionButton}" Height="32" Padding="14,0"
                                Click="Reload_Click"/>
-                    <ui:Button Content="登录完成，保存凭据" Appearance="Primary" Height="32" Padding="16,0"
+                    <ui:Button Content="保存凭据" Appearance="Primary" Height="32" Padding="16,0"
                                Margin="8,0,0,0" Click="Save_Click"/>
                     <ui:Button Content="取消" Style="{StaticResource ActionButton}" Height="32" Padding="16,0"
                                Margin="8,0,0,0" Click="Cancel_Click"/>

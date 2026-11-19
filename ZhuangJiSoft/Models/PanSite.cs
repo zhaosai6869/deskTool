@@ -18,18 +18,32 @@ public enum PanSite
 /// <summary>网盘站点静态信息。</summary>
 public static class PanSites
 {
-    public sealed record Info(PanSite Site, string Name, string Icon, string LoginUrl, string HomeUrl);
+    public sealed record Info(
+        PanSite Site, string Name, string Icon, string LoginUrl, string HomeUrl,
+        string[] LoginCookieHints);
 
+    /// <summary>
+    /// LoginCookieHints：该站登录成功后必然出现的关键 Cookie 名（用于自动检测登录态）。
+    /// 只要命中其中任意一个，即认为用户已在页面完成登录。
+    /// </summary>
     public static readonly Info[] All =
     [
-        new(PanSite.Baidu, "百度网盘", "📦", "https://pan.baidu.com", "https://pan.baidu.com/disk/home"),
-        new(PanSite.Aliyun, "阿里云盘", "☁️", "https://www.alipan.com", "https://www.alipan.com"),
-        new(PanSite.Quark, "夸克网盘", "⚡", "https://pan.quark.cn", "https://pan.quark.cn"),
-        new(PanSite.UC, "UC 网盘", "🐦", "https://drive.uc.cn", "https://drive.uc.cn"),
-        new(PanSite.Tianyi, "天翼云盘", "📡", "https://cloud.189.cn", "https://cloud.189.cn/web/"),
-        new(PanSite.Xunlei, "迅雷云盘", "⚡", "https://pan.xunlei.com", "https://pan.xunlei.com"),
-        new(PanSite.Mobile, "中国移动云盘", "📱", "https://yun.139.com", "https://yun.139.com/w/"),
-        new(PanSite.Pan123, "123 云盘", "🔢", "https://www.123pan.com", "https://www.123pan.com")
+        new(PanSite.Baidu, "百度网盘", "📦", "https://pan.baidu.com", "https://pan.baidu.com/disk/home",
+            ["BDUSS"]),
+        new(PanSite.Aliyun, "阿里云盘", "☁️", "https://www.alipan.com", "https://www.alipan.com",
+            ["_u_uvc_token", "token", "refresh_token"]),
+        new(PanSite.Quark, "夸克网盘", "⚡", "https://pan.quark.cn", "https://pan.quark.cn",
+            ["__puus", "__pua"]),
+        new(PanSite.UC, "UC 网盘", "🐦", "https://drive.uc.cn", "https://drive.uc.cn",
+            ["__puus", "__pua"]),
+        new(PanSite.Tianyi, "天翼云盘", "📡", "https://cloud.189.cn", "https://cloud.189.cn/web/",
+            ["LWT", "loginToken"]),
+        new(PanSite.Xunlei, "迅雷云盘", "⚡", "https://pan.xunlei.com", "https://pan.xunlei.com",
+            ["_xlmth_", "xl_userid", "sessionid"]),
+        new(PanSite.Mobile, "中国移动云盘", "📱", "https://yun.139.com", "https://yun.139.com/w/",
+            ["token", "Authorization", "session"]),
+        new(PanSite.Pan123, "123 云盘", "🔢", "https://www.123pan.com", "https://www.123pan.com",
+            ["token", "sign", "sessionid"])
     ];
 
     public static Info Get(PanSite site) => All.FirstOrDefault(x => x.Site == site) ?? All[0];
