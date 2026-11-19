@@ -34,20 +34,33 @@
 
         <Border Grid.Row="2" Padding="16,10">
             <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock x:Name="StatusText" Text="" FontSize="12" Foreground="#0F6CBD"
-                           VerticalAlignment="Center" TextWrapping="Wrap"/>
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
+
+                <TextBlock x:Name="StatusText" Grid.Row="0" Grid.Column="0" Text="准备中…"
+                           FontSize="12" Foreground="#0F6CBD" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
                     <ui:Button Content="重新加载" Style="{StaticResource ActionButton}" Height="32" Padding="14,0"
                                Click="Reload_Click"/>
-                    <ui:Button Content="保存凭据" Appearance="Primary" Height="32" Padding="16,0"
+                    <ui:Button Content="复制诊断" Style="{StaticResource ActionButton}" Height="32" Padding="14,0"
+                               Margin="8,0,0,0" Click="CopyDiag_Click"/>
+                    <ui:Button Content="✅ 登录完成后点这里保存" Appearance="Primary" Height="32" Padding="16,0"
                                Margin="8,0,0,0" Click="Save_Click"/>
                     <ui:Button Content="取消" Style="{StaticResource ActionButton}" Height="32" Padding="16,0"
                                Margin="8,0,0,0" Click="Cancel_Click"/>
                 </StackPanel>
+
+                <TextBox x:Name="DiagLog" Grid.Row="1" Grid.ColumnSpan="2" Height="92" Margin="0,8,0,0"
+                         Style="{x:Null}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="10"
+                         Background="#1E1E1E" Foreground="#D4D4D4" BorderBrush="#3C3C3C" BorderThickness="1"
+                         Padding="8,6" Text="诊断日志（实时）："/>
             </Grid>
         </Border>
     </Grid>

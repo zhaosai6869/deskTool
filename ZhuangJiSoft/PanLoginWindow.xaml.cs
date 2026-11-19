@@ -32,6 +32,7 @@ public partial class PanLoginWindow : FluentWindow
     private readonly string[] _loginHints;
     private CancellationTokenSource? _poll;
     private bool _closing;
+    private int _diagTick;
 
     public PanCredential? Credential { get; private set; }
 
@@ -56,21 +57,49 @@ public partial class PanLoginWindow : FluentWindow
     {
         try
         {
+            AppendDiag($"目标站点：{PanSites.NameOf(_site)}  登录页：{_loginUrl}");
+            AppendDiag($"WebView2 数据目录：{WebViewDataDir}");
+
             // 固定用户目录 → 复用 cookie 与缓存，页面加载更快
             Directory.CreateDirectory(WebViewDataDir);
             var env = await CoreWebView2Environment.CreateAsync(userDataFolder: WebViewDataDir);
             await LoginView.EnsureCoreWebView2Async(env);
 
-            LoginView.CoreWebView2.NavigationCompleted += OnNavCompleted;
-            LoginView.CoreWebView2.Navigate(_loginUrl);
-            TipText.Text = $"请在 {PanSites.NameOf(_site)} 官方页面完成登录，成功后会自动保存凭据。";
+            var web = LoginView.CoreWebView2;
+            web.NavigationCompleted += OnNavCompleted;
+            // 扫码登录常在弹窗/新标签完成，把弹窗强制并回主窗口，确保 cookie 与 localStorage 在同一上下文
+            web.NewWindowRequested += (s, a) =>
+            {
+                AppendDiag($"拦截弹窗：{a.Uri}（并回主窗口）");
+                a.Handled = true;
+                if (!string.IsNullOrEmpty(a.Uri)) web.Navigate(a.Uri);
+            };
+            web.Navigate(_loginUrl);
+            TipText.Text = $"请在 {PanSites.NameOf(_site)} 官方页面完成登录（扫码/账密均可）。登录成功后点底部绿色按钮保存；也可等自动识别。";
+            StatusText.Text = "页面加载中…";
             StartAutoDetect();
         }
         catch (Exception ex)
         {
             LoadingMask.Visibility = Visibility.Collapsed;
             StatusText.Text = "登录页加载失败：" + ex.Message;
+            AppendDiag("初始化异常：" + ex);
         }
+    }
+
+    /// <summary>把一行诊断追加到日志框（自动滚动，限长）。</summary>
+    private void AppendDiag(string line)
+    {
+        var text = $"[{DateTime.Now:HH:mm:ss}] {line}";
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.Invoke(() => AppendDiag(line));
+            return;
+        }
+        DiagLog.AppendText(text + Environment.NewLine);
+        if (DiagLog.Text.Length > 12000)
+            DiagLog.Text = DiagLog.Text[^12000..];
+        DiagLog.ScrollToEnd();
     }
 
     private void OnNavCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
@@ -142,15 +171,22 @@ public partial class PanLoginWindow : FluentWindow
                         {
                             var reason = !string.IsNullOrEmpty(hit) ? $"登录 Cookie「{hit}」"
                                 : urlLoggedIn ? "已进入网盘主界面" : "本地凭据";
+                            AppendDiag($"判定登录成功（{reason}）→ 自动保存");
                             StatusText.Text = $"检测到登录成功（{reason}），正在保存…";
                             await SaveCredentialAsync(web, auto: true);
                             return true;
                         }
 
-                        // 未命中：持续显示诊断，便于用户反馈实际读到了什么
-                        var names = string.Join(",", cookies.Take(10).Select(c => c.Name));
-                        var page = source.Length > 55 ? source.Substring(0, 55) + "…" : source;
-                        StatusText.Text = $"等待登录… Cookie {cookies.Count} 个 [{names}] · {page}";
+                        // 未命中：诊断写入日志框（每 5 轮记一次，避免刷屏）
+                        if (_diagTick++ % 5 == 0)
+                        {
+                            var names = string.Join(",", cookies.Take(12).Select(c => c.Name));
+                            var lsKeys = await ReadLocalStorageKeysAsync(web);
+                            AppendDiag($"等待登录 | URL={source}");
+                            AppendDiag($"  Cookie {cookies.Count} 个: [{names}]");
+                            AppendDiag($"  localStorage 键: [{lsKeys}]  凭据信号: cookie={hit ?? "无"} url={urlLoggedIn} ls={lsLoggedIn}");
+                        }
+                        StatusText.Text = $"等待登录… 已读到 Cookie {cookies.Count} 个（详见下方诊断日志）";
                         return false;
                     });
 
@@ -202,9 +238,24 @@ public partial class PanLoginWindow : FluentWindow
         if (web is null)
         {
             StatusText.Text = "页面尚未加载完成";
+            AppendDiag("手动保存失败：WebView2 未就绪");
             return;
         }
+        AppendDiag("用户点击「保存凭据」，开始读取…");
         await SaveCredentialAsync(web, auto: false);
+    }
+
+    private void CopyDiag_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Clipboard.SetText(DiagLog.Text);
+            StatusText.Text = "诊断日志已复制到剪贴板，可粘贴发给开发者";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = "复制失败：" + ex.Message;
+        }
     }
 
     /// <summary>读取 Cookie + localStorage，封装为凭据并关闭窗口。</summary>
@@ -218,9 +269,14 @@ public partial class PanLoginWindow : FluentWindow
             var cookieHeader = string.Join("; ", cookies.Select(c => $"{c.Name}={c.Value}"));
             var lsJson = await ReadLocalStorageAsync(web);
 
+            AppendDiag($"读取结果：Cookie {cookies.Count} 个，header {cookieHeader.Length} 字符，localStorage {lsJson.Length} 字符");
+            AppendDiag($"  Cookie 名单: [{string.Join(",", cookies.Take(20).Select(c => c.Name))}]");
+
             if (string.IsNullOrWhiteSpace(cookieHeader) && string.IsNullOrWhiteSpace(lsJson))
             {
-                if (!auto) StatusText.Text = "未读取到凭据，请确认已在页面中完成登录后再点保存。";
+                var msg = "未读取到凭据。请确认：①已在此页面完成登录 ②页面已跳转到网盘主界面 ③登录没有在外部浏览器完成。";
+                StatusText.Text = msg;
+                AppendDiag("保存中止：" + msg);
                 return;
             }
 
@@ -230,6 +286,7 @@ public partial class PanLoginWindow : FluentWindow
                 AccessToken = lsJson,
                 UpdatedAt = DateTime.Now
             };
+            AppendDiag("凭据已封装，关闭窗口并回传");
             _closing = true;
             _poll?.Cancel();
             DialogResult = true;
@@ -237,7 +294,8 @@ public partial class PanLoginWindow : FluentWindow
         }
         catch (Exception ex)
         {
-            if (!auto) StatusText.Text = "读取凭据失败：" + ex.Message;
+            StatusText.Text = "读取凭据失败：" + ex.Message;
+            AppendDiag("读取凭据异常：" + ex);
         }
     }
 
@@ -283,7 +341,7 @@ public partial class PanLoginWindow : FluentWindow
         return map.Values.ToList();
     }
 
-    /// <summary>读取 localStorage 中包含 token 迹象的键，返回 JSON 对象字符串。</summary>
+    /// <summary>读取 localStorage 中包含 token 迹象的键，返回 JSON 对象字符串。任何异常都吞掉返回空。</summary>
     private static async Task<string> ReadLocalStorageAsync(CoreWebView2 web)
     {
         const string script = @"(function(){
@@ -299,10 +357,10 @@ public partial class PanLoginWindow : FluentWindow
                 return out;
             } catch (e) { return {}; }
         })()";
-        var result = await web.ExecuteScriptAsync(script);
-        if (string.IsNullOrWhiteSpace(result) || result == "null") return string.Empty;
         try
         {
+            var result = await web.ExecuteScriptAsync(script);
+            if (string.IsNullOrWhiteSpace(result) || result == "null") return string.Empty;
             var json = JsonSerializer.Deserialize<JsonElement>(result);
             if (json.ValueKind == JsonValueKind.String)
             {
@@ -322,6 +380,22 @@ public partial class PanLoginWindow : FluentWindow
         catch
         {
             return string.Empty;
+        }
+    }
+
+    /// <summary>仅读取 localStorage 的所有键名（诊断用），失败返回错误文本。</summary>
+    private static async Task<string> ReadLocalStorageKeysAsync(CoreWebView2 web)
+    {
+        try
+        {
+            var raw = await web.ExecuteScriptAsync("Object.keys(localStorage).join(',')");
+            if (string.IsNullOrWhiteSpace(raw)) return "空";
+            var json = JsonSerializer.Deserialize<JsonElement>(raw);
+            return json.ValueKind == JsonValueKind.String ? json.GetString() ?? "?" : raw;
+        }
+        catch (Exception ex)
+        {
+            return "读取异常:" + ex.GetType().Name;
         }
     }
 
