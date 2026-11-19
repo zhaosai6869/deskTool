@@ -97,4 +97,27 @@ public partial class ComicView : UserControl
     }
 
     private void OpenDir_Click(object sender, RoutedEventArgs e) => VM.OpenDownloadFolder();
+
+    private void Site_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is Models.ComicSite site)
+        {
+            VM.OpenSite(site, Window.GetWindow(this));
+        }
+    }
+
+    private void AddSite_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new ComicSiteDialog("添加漫画网站") { Owner = Window.GetWindow(this) };
+        if (dlg.ShowDialog() == true)
+        {
+            VM.AddOrUpdateSite(null, dlg.SiteName, dlg.SiteUrl);
+        }
+    }
+
+    private void ManageSites_Click(object sender, RoutedEventArgs e)
+    {
+        var mgr = new ComicSiteManager(VM) { Owner = Window.GetWindow(this) };
+        mgr.ShowDialog();
+    }
 }

@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
+using DeskApp.Models;
 
 namespace DeskApp.Utils;
 
@@ -27,6 +30,9 @@ public class ComicConfig
     /// <summary>图片地址的 CSS 选择器（手动校正用，留空则自动识别）。</summary>
     public string ImageSelector { get; set; } = string.Empty;
 
+    /// <summary>漫画网站快捷入口。null 表示老配置未含此字段，加载时会填入内置默认站点。</summary>
+    public List<ComicSite>? Sites { get; set; }
+
     private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "data", "comic_config.json");
 
     /// <summary>与其他下载模块一致：默认保存到 用户下载目录\漫画下载。</summary>
@@ -35,7 +41,11 @@ public class ComicConfig
 
     public static ComicConfig Load()
     {
-        var config = new ComicConfig { DownloadDir = DefaultDownloadDir };
+        var config = new ComicConfig
+        {
+            DownloadDir = DefaultDownloadDir,
+            Sites = ComicSite.CloneDefaults().ToList()
+        };
         try
         {
             if (File.Exists(ConfigPath))
@@ -51,6 +61,11 @@ public class ComicConfig
                     config.DelayMs = Math.Clamp(saved.DelayMs, 0, 10000);
                     config.ChapterSelector = saved.ChapterSelector ?? string.Empty;
                     config.ImageSelector = saved.ImageSelector ?? string.Empty;
+                    // 老配置没有 Sites 字段时为 null → 填默认；空列表是用户主动删空的，保留
+                    config.Sites = saved.Sites is null
+                        ? ComicSite.CloneDefaults().ToList()
+                        : saved.Sites.Where(s => !string.IsNullOrWhiteSpace(s.Name) &&
+                                                 !string.IsNullOrWhiteSpace(s.Url)).ToList();
                 }
             }
         }

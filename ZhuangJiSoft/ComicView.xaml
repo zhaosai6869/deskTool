@@ -43,10 +43,45 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- 网站快捷入口小按钮 -->
+        <Style x:Key="SiteChipButton" TargetType="Button">
+            <Setter Property="Height" Value="27"/>
+            <Setter Property="Padding" Value="11,0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#0F6CBD"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#C9DCF2"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="14" Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E8F2FD"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#0F6CBD"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#D4E7FB"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid Margin="14,10">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -72,8 +107,42 @@
                        MaxWidth="260" TextTrimming="CharacterEllipsis"/>
         </Grid>
 
+        <!-- 漫画网站快捷入口：点网站名用系统浏览器打开，支持增删/恢复默认 -->
+        <Border Grid.Row="1" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
+                CornerRadius="6" Padding="10,7" Margin="0,0,0,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="漫画网站" Style="{StaticResource FieldLabel}"
+                           Margin="0,0,10,0" VerticalAlignment="Center"/>
+                <ItemsControl Grid.Column="1" ItemsSource="{Binding Sites}" VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Content="{Binding Name}" Style="{StaticResource SiteChipButton}"
+                                    ToolTip="{Binding Url}" Margin="0,2,6,2"
+                                    Click="Site_Click" Tag="{Binding}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                    <ui:Button Content="添加" Style="{StaticResource ActionButton}" Height="28" Padding="10,0"
+                               Click="AddSite_Click" ToolTip="添加漫画网站"/>
+                    <ui:Button Content="管理" Style="{StaticResource ActionButton}" Height="28" Padding="10,0"
+                               Margin="6,0,0,0" Click="ManageSites_Click" ToolTip="编辑或删除漫画网站"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- 网址输入 -->
-        <Grid Grid.Row="1" Margin="0,0,0,6">
+        <Grid Grid.Row="2" Margin="0,0,0,6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -92,7 +161,7 @@
         </Grid>
 
         <!-- 手动校正 + 导出格式 -->
-        <Border Grid.Row="2" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
+        <Border Grid.Row="3" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
                 CornerRadius="6" Padding="10,6" Margin="0,0,0,6">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -118,7 +187,7 @@
         </Border>
 
         <!-- 章节列表 -->
-        <DataGrid Grid.Row="3" x:Name="ChapterGrid" Style="{StaticResource AppDataGrid}"
+        <DataGrid Grid.Row="4" x:Name="ChapterGrid" Style="{StaticResource AppDataGrid}"
                   ItemsSource="{Binding Chapters}" CanUserSortColumns="True">
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
@@ -152,7 +221,7 @@
         </DataGrid>
 
         <!-- 勾选 / 进度 -->
-        <Grid Grid.Row="4" Margin="0,8,0,6">
+        <Grid Grid.Row="5" Margin="0,8,0,6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
@@ -171,7 +240,7 @@
         </Grid>
 
         <!-- 保存目录 / 下载 -->
-        <Grid Grid.Row="5" Margin="0,0,0,6">
+        <Grid Grid.Row="6" Margin="0,0,0,6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
@@ -188,7 +257,7 @@
         </Grid>
 
         <!-- 状态栏 -->
-        <Border Grid.Row="6" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
+        <Border Grid.Row="7" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
                 CornerRadius="6" Padding="10,5">
             <Grid>
                 <Grid.ColumnDefinitions>

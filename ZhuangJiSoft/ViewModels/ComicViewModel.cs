@@ -27,11 +27,18 @@ public partial class ComicViewModel : ObservableObject
         ImageSelector = Config.ImageSelector;
         ExportCbz = true;
         ExportPdf = true;
+        foreach (var site in Config.Sites ?? [])
+        {
+            Sites.Add(site);
+        }
     }
 
     public ComicConfig Config { get; }
 
     public ObservableCollection<ComicChapter> Chapters { get; } = [];
+
+    /// <summary>漫画网站快捷入口。</summary>
+    public ObservableCollection<ComicSite> Sites { get; } = [];
 
     [ObservableProperty] private bool _busy;
     [ObservableProperty] private string _url = string.Empty;
@@ -282,13 +289,74 @@ public partial class ComicViewModel : ObservableObject
         }
     }
 
+    /// <summary>用系统默认浏览器打开网站首页。</summary>
+    public void OpenSite(ComicSite? site, Window? owner)
+    {
+        if (site is null || string.IsNullOrWhiteSpace(site.Url)) return;
+        if (!Uri.TryCreate(site.Url.Trim(), UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            MessageBox.Show(owner, $"「{site.Name}」的网址无效：{site.Url}", "漫画下载",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        try
+        {
+            Process.Start(new ProcessStartInfo { FileName = uri.AbsoluteUri, UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(owner, "打开网站失败：" + ex.Message, "漫画下载",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>新增或编辑站点，返回是否发生变更。</summary>
+    public bool AddOrUpdateSite(ComicSite? existing, string name, string url)
+    {
+        name = name.Trim();
+        url = url.Trim();
+        if (name.Length == 0 || url.Length == 0) return false;
+
+        if (existing is null)
+        {
+            Sites.Add(new ComicSite { Name = name, Url = url });
+        }
+        else
+        {
+            existing.Name = name;
+            existing.Url = url;
+        }
+        SaveSites();
+        return true;
+    }
+
+    public void RemoveSite(ComicSite site)
+    {
+        if (Sites.Remove(site)) SaveSites();
+    }
+
+    /// <summary>恢复内置默认站点。</summary>
+    public void ResetSites()
+    {
+        Sites.Clear();
+        foreach (var s in ComicSite.CloneDefaults()) Sites.Add(s);
+        SaveSites();
+    }
+
+    private void SaveSites()
+    {
+        Config.Sites = Sites.ToList();
+        Config.Save();
+    }
+
     public void SaveSettings()
     {
         if (string.IsNullOrWhiteSpace(DownloadDir)) DownloadDir = ComicConfig.DefaultDownloadDir;
         Config.DownloadDir = DownloadDir.Trim();
         Config.ChapterSelector = ChapterSelector.Trim();
         Config.ImageSelector = ImageSelector.Trim();
-        Config.Save();
+        SaveSites();
     }
 
     private static string UniquePath(string path)
