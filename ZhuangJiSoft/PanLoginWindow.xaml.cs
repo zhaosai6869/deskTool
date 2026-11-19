@@ -21,6 +21,12 @@ namespace DeskApp;
 /// </summary>
 public partial class PanLoginWindow : FluentWindow
 {
+    /// <summary>宽松的凭据 Cookie 名关键词：覆盖各站千变万化的登录态命名。</summary>
+    private static readonly System.Text.RegularExpressions.Regex CredentialKeyRegex =
+        new(@"token|auth|session|user|uid|login|stoken|puus|bduc|buss|sid|ticket|passport|identity",
+            System.Text.RegularExpressions.RegexOptions.Compiled |
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
     private readonly PanSite _site;
     private readonly string _loginUrl;
     private readonly string[] _loginHints;
@@ -77,68 +83,111 @@ public partial class PanLoginWindow : FluentWindow
     }
 
     /// <summary>
-    /// 轮询检测登录标志 Cookie，命中即自动保存。
-    /// WebView2 API 与 UI 操作有线程亲和性，必须切回 UI 线程执行，
-    /// 否则会抛跨线程异常并被吞掉，表现为「已登录但凭据没保存」。
+    /// 多信号判定登录成功：①登录标志 Cookie ②页面已进入网盘主界面 ③localStorage 出现凭据。
+    /// 任一命中即自动保存；同时把读到的 Cookie 数量与前几个名字显示在状态栏，便于定位。
+    /// WebView2 API 与 UI 操作必须切回 UI 线程，否则跨线程异常会被吞掉。
     /// </summary>
     private void StartAutoDetect()
     {
         _poll?.Cancel();
         _poll = new CancellationTokenSource();
         var token = _poll.Token;
-        var detected = false;
 
         _ = Task.Run(async () =>
         {
-            // 页面刚打开时可能残留上次会话的 cookie，先等几秒再开始判定
-            try { await Task.Delay(3000, token); }
+            // 页面刚打开时可能残留上次会话的 cookie，先等 2 秒再开始判定
+            try { await Task.Delay(2000, token); }
             catch (OperationCanceledException) { return; }
 
-            while (!token.IsCancellationRequested && !_closing && !detected)
+            while (!token.IsCancellationRequested && !_closing)
             {
                 try
                 {
-                    // Invoke 的委托体在 UI 线程启动，其后的 await 也由 DispatcherSynchronizationContext 续在 UI 线程
-                    await Dispatcher.Invoke(async () =>
+                    var done = await Dispatcher.Invoke(async () =>
                     {
-                        if (_closing || detected) return;
+                        if (_closing) return true;
                         var web = LoginView.CoreWebView2;
                         var source = web?.Source;
-                        if (web is null || string.IsNullOrEmpty(source)) return;
-                        try
-                        {
-                            var cookies = await ReadAllCookiesAsync(web);
-                            // 必须是非空且有一定长度的登录态 cookie，避免设备占位 cookie 误判
-                            var hit = _loginHints.FirstOrDefault(h =>
-                            {
-                                var c = cookies.FirstOrDefault(x =>
-                                    string.Equals(x.Name, h, StringComparison.OrdinalIgnoreCase));
-                                return c is not null
-                                       && !string.IsNullOrWhiteSpace(c.Value)
-                                       && c.Value.Length >= 8;
-                            });
-                            if (string.IsNullOrEmpty(hit)) return;
+                        if (web is null || string.IsNullOrEmpty(source)) return false;
 
-                            detected = true;
-                            StatusText.Text = $"检测到登录成功（{hit}），正在保存…";
-                            await SaveCredentialAsync(web, auto: true);
-                        }
-                        catch
+                        var cookies = await ReadAllCookiesAsync(web);
+                        var lsJson = await ReadLocalStorageAsync(web);
+
+                        // 信号①：登录标志 Cookie
+                        //   优先用站点精确名单；没有则用宽松凭据关键词兜底
+                        //   （如 BDUSS 含 buss、__puus 含 puus、各种 token/session/user 等）
+                        var hit = _loginHints.FirstOrDefault(h =>
                         {
-                            detected = false;
-                            // 页面跳转中脚本执行失败属正常，继续轮询
+                            var c = cookies.FirstOrDefault(x =>
+                                string.Equals(x.Name, h, StringComparison.OrdinalIgnoreCase));
+                            return c is not null
+                                   && !string.IsNullOrWhiteSpace(c.Value)
+                                   && c.Value.Length >= 4;
+                        });
+                        if (string.IsNullOrEmpty(hit))
+                        {
+                            hit = cookies.FirstOrDefault(c =>
+                                !string.IsNullOrWhiteSpace(c.Value)
+                                && c.Value.Length >= 6
+                                && CredentialKeyRegex.IsMatch(c.Name))?.Name;
                         }
+
+                        // 信号②：页面 URL 已进入网盘主界面（不再停留在登录页）
+                        var urlLoggedIn = LooksLoggedIn(source);
+
+                        // 信号③：localStorage 出现凭据类内容
+                        var lsLoggedIn = !string.IsNullOrWhiteSpace(lsJson) && lsJson.Length > 40;
+
+                        if (!string.IsNullOrEmpty(hit) || urlLoggedIn || lsLoggedIn)
+                        {
+                            var reason = !string.IsNullOrEmpty(hit) ? $"登录 Cookie「{hit}」"
+                                : urlLoggedIn ? "已进入网盘主界面" : "本地凭据";
+                            StatusText.Text = $"检测到登录成功（{reason}），正在保存…";
+                            await SaveCredentialAsync(web, auto: true);
+                            return true;
+                        }
+
+                        // 未命中：持续显示诊断，便于用户反馈实际读到了什么
+                        var names = string.Join(",", cookies.Take(10).Select(c => c.Name));
+                        var page = source.Length > 55 ? source.Substring(0, 55) + "…" : source;
+                        StatusText.Text = $"等待登录… Cookie {cookies.Count} 个 [{names}] · {page}";
+                        return false;
                     });
+
+                    if (done) return;
                 }
                 catch
                 {
-                    // 窗口关闭瞬间 Dispatcher 可能拒绝调度，忽略即可
+                    // 页面跳转中脚本执行失败或窗口关闭，继续下一轮
                 }
 
                 try { await Task.Delay(1500, token); }
                 catch (OperationCanceledException) { return; }
             }
         }, token);
+    }
+
+    /// <summary>根据当前页面 URL 判断是否已离开登录页、进入网盘主界面。</summary>
+    private static bool LooksLoggedIn(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        var lower = url.ToLowerInvariant();
+        var host = uri.Host.ToLowerInvariant();
+
+        // 仍在登录页/认证页
+        if (host.Contains("passport") || host.Contains("login") || host.Contains("auth") ||
+            host.Contains("signin") || lower.Contains("/login") ||
+            lower.Contains("/signin") || lower.Contains("passport"))
+            return false;
+
+        // 已进入各家网盘主界面路径
+        if (lower.Contains("/disk/home") || lower.Contains("/disk") ||
+            lower.Contains("/home") || lower.Contains("/index") ||
+            lower.Contains("/drive") || lower.Contains("/main") ||
+            lower.Contains("/file") || lower.Contains("/web/"))
+            return true;
+
+        return false;
     }
 
     private void Reload_Click(object sender, RoutedEventArgs e)
