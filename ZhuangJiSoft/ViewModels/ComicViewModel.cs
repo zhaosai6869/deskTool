@@ -24,6 +24,7 @@ public partial class ComicViewModel : ObservableObject
     {
         Config = ComicConfig.Load();
         DownloadDir = Config.DownloadDir;
+        BiliCookie = Config.BiliSessData;
         ExportCbz = true;
         ExportPdf = true;
 
@@ -45,6 +46,10 @@ public partial class ComicViewModel : ObservableObject
     [ObservableProperty] private string _bookTitle = string.Empty;
     [ObservableProperty] private string _statusText = "粘贴 8 个支持站点之一的漫画目录页网址，点「解析章节」开始";
     [ObservableProperty] private string _siteHint = string.Empty;
+
+    /// <summary>哔哩哔哩漫画登录凭据（SESSDATA）。B 漫接口已关闭匿名访问，其它站点不需要。</summary>
+    [ObservableProperty] private string _biliCookie = string.Empty;
+
     [ObservableProperty] private bool _exportCbz;
     [ObservableProperty] private bool _exportPdf;
     [ObservableProperty] private string _downloadDir = string.Empty;
@@ -91,6 +96,10 @@ public partial class ComicViewModel : ObservableObject
         SiteHint = $"{provider.DisplayName} · {provider.Usage}";
         try
         {
+            // 解析前把最新填写的 Cookie 同步进配置，避免用户改了却忘了点保存
+            Config.BiliSessData = (BiliCookie ?? string.Empty).Trim();
+            Config.Save();
+
             StatusText = $"正在从 {provider.DisplayName} 抓取目录页…";
             var result = await provider.ParseChaptersAsync(input, Config, CancellationToken.None);
 
@@ -162,6 +171,7 @@ public partial class ComicViewModel : ObservableObject
             DownloadDir = ComicConfig.DefaultDownloadDir;
         }
         Config.DownloadDir = DownloadDir.Trim();
+        Config.BiliSessData = (BiliCookie ?? string.Empty).Trim();
         Config.Save();
 
         try
@@ -327,6 +337,7 @@ public partial class ComicViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(DownloadDir)) DownloadDir = ComicConfig.DefaultDownloadDir;
         Config.DownloadDir = DownloadDir.Trim();
+        Config.BiliSessData = (BiliCookie ?? string.Empty).Trim();
         Config.Save();
     }
 

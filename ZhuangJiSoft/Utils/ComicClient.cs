@@ -166,6 +166,70 @@ public static class ComicClient
         }, config, ct);
     }
 
+    /// <summary>提交 application/json 请求体，返回 UTF-8 文本（B 漫等 twirp 接口）。</summary>
+    public static Task<string> PostJsonAsync(string url, string referer, string json,
+        ComicConfig config, CancellationToken ct, params (string Name, string Value)[] headers)
+    {
+        return SendTextAsync(() =>
+        {
+            var req = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            };
+            req.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
+            req.Headers.TryAddWithoutValidation("Accept", "application/json, text/plain, */*");
+            req.Headers.TryAddWithoutValidation("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
+            if (!string.IsNullOrWhiteSpace(referer))
+            {
+                req.Headers.TryAddWithoutValidation("Referer", referer);
+            }
+            foreach (var (name, value) in headers)
+            {
+                if (string.IsNullOrWhiteSpace(value)) continue;
+                req.Headers.TryAddWithoutValidation(name, value);
+            }
+            return req;
+        }, config, ct);
+    }
+
+    /// <summary>下载任意二进制资源（如 B 漫的 .index 索引文件）；失败返回 null。</summary>
+    public static async Task<byte[]?> DownloadBytesAsync(string url, string referer, ComicConfig config,
+        CancellationToken ct, params (string Name, string Value)[] headers)
+    {
+        for (var attempt = 0; attempt <= config.Retries; attempt++)
+        {
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                req.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
+                if (!string.IsNullOrWhiteSpace(referer))
+                {
+                    req.Headers.TryAddWithoutValidation("Referer", referer);
+                }
+                foreach (var (name, value) in headers)
+                {
+                    if (string.IsNullOrWhiteSpace(value)) continue;
+                    req.Headers.TryAddWithoutValidation(name, value);
+                }
+
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                linked.CancelAfter(TimeSpan.FromSeconds(config.TimeoutSeconds));
+                using var resp = await Http.SendAsync(req, HttpCompletionOption.ResponseContentRead, linked.Token);
+                if (!resp.IsSuccessStatusCode) continue;
+                return await resp.Content.ReadAsByteArrayAsync(linked.Token);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // 超时，重试
+            }
+            catch
+            {
+                // 其它错误，重试
+            }
+        }
+        return null;
+    }
+
     private static async Task<string> SendTextAsync(Func<HttpRequestMessage> factory,
         ComicConfig config, CancellationToken ct)
     {

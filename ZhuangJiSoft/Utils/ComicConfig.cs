@@ -6,11 +6,14 @@ namespace DeskApp.Utils;
 
 /// <summary>
 /// 漫画下载模块配置。存 exe 同级 data\comic_config.json；文件损坏时回退默认值。
-/// 各站点解析逻辑写死在 Provider 中，这里只保留下载相关参数。
+/// 各站点解析逻辑写死在 Provider 中，这里只保留下载相关参数与登录凭据。
 /// </summary>
 public class ComicConfig
 {
     public string DownloadDir { get; set; } = string.Empty;
+
+    /// <summary>B 漫登录凭据（Cookie 里的 SESSDATA 值）。B 漫接口已关闭匿名访问，必须提供。</summary>
+    public string BiliSessData { get; set; } = string.Empty;
 
     /// <summary>单次网络读写超时秒数。</summary>
     public int TimeoutSeconds { get; set; } = 60;
@@ -40,6 +43,7 @@ public class ComicConfig
                     config.DownloadDir = string.IsNullOrWhiteSpace(saved.DownloadDir)
                         ? DefaultDownloadDir
                         : saved.DownloadDir;
+                    config.BiliSessData = (saved.BiliSessData ?? string.Empty).Trim();
                     config.TimeoutSeconds = Math.Clamp(saved.TimeoutSeconds, 1, 3600);
                     config.Retries = Math.Clamp(saved.Retries, 0, 10);
                     config.DelayMs = Math.Clamp(saved.DelayMs, 0, 10000);

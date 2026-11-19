@@ -98,6 +98,34 @@ public partial class ComicView : UserControl
 
     private void OpenDir_Click(object sender, RoutedEventArgs e) => VM.OpenDownloadFolder();
 
+    /// <summary>保存 B 漫 Cookie（SESSDATA）到配置。</summary>
+    private void SaveCookie_Click(object sender, RoutedEventArgs e)
+    {
+        VM.SaveSettings();
+        VM.StatusText = string.IsNullOrWhiteSpace(VM.BiliCookie)
+            ? "B漫 Cookie 已清空（哔哩哔哩漫画将无法解析）"
+            : "B漫 Cookie 已保存";
+    }
+
+    /// <summary>打开内嵌 B 漫登录窗口，扫码/账密登录后自动回填 SESSDATA。</summary>
+    private void Login_Click(object sender, RoutedEventArgs e)
+    {
+        var owner = Window.GetWindow(this);
+        var dlg = new ComicLoginWindow();
+        if (owner is not null) dlg.Owner = owner;
+        VM.StatusText = "正在打开哔哩哔哩漫画登录页…";
+        if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.SessData))
+        {
+            VM.BiliCookie = dlg.SessData;
+            VM.SaveSettings();
+            VM.StatusText = "B漫登录成功，SESSDATA 已保存（约 30 天有效，过期重新点「登录」即可）";
+        }
+        else
+        {
+            VM.StatusText = "已取消 B漫登录";
+        }
+    }
+
     private void Site_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is Models.ComicSite site)

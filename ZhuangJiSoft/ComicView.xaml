@@ -157,19 +157,43 @@
         <Border Grid.Row="3" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
                 CornerRadius="6" Padding="10,6" Margin="0,0,0,6">
             <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="{Binding SiteHint}" FontSize="12" Foreground="#5A6472"
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding SiteHint}" FontSize="12" Foreground="#5A6472"
                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                            ToolTip="{Binding SiteHint}"/>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
                     <CheckBox Content="CBZ" IsChecked="{Binding ExportCbz, Mode=TwoWay}"
                               Style="{StaticResource ModuleCheckBox}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <CheckBox Content="PDF" IsChecked="{Binding ExportPdf, Mode=TwoWay}"
                               Style="{StaticResource ModuleCheckBox}" VerticalAlignment="Center"/>
                 </StackPanel>
+
+                <!-- B 漫登录凭据：哔哩哔哩漫画接口已关闭匿名访问，必须填 SESSDATA；其它站点忽略此项 -->
+                <Grid Grid.Row="1" Grid.ColumnSpan="2" Margin="0,6,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="B漫 Cookie" Style="{StaticResource FieldLabel}"
+                               Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" Style="{StaticResource Input}"
+                             Text="{Binding BiliCookie, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="仅哔哩哔哩漫画需要：点右侧「登录」扫码登录会自动填入；也可浏览器登录 manga.bilibili.com → F12 → 应用 → Cookie → 复制 SESSDATA 的值粘贴到这里（只填值或填 SESSDATA=xxx 都可以）"/>
+                    <ui:Button Grid.Column="2" Content="保存" Style="{StaticResource ActionButton}"
+                               Height="30" Padding="12,0" Margin="8,0,0,0" Click="SaveCookie_Click"/>
+                    <ui:Button Grid.Column="3" Content="登录" Appearance="Primary" Height="30" Padding="14,0"
+                               Margin="8,0,0,0" Click="Login_Click"
+                               ToolTip="点开哔哩哔哩漫画官方登录页，扫码/账号密码登录后自动读取 SESSDATA 并保存"/>
+                </Grid>
             </Grid>
         </Border>
 
