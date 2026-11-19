@@ -34,6 +34,10 @@ public partial class PanLoginWindow : FluentWindow
     private bool _closing;
     private int _diagTick;
 
+    /// <summary>打开页面时记录的初始 Cookie 名字集合与 URL（未登录基线），用于识别"新增"的登录 Cookie。</summary>
+    private HashSet<string>? _baselineCookieNames;
+    private string? _baselineUrl;
+
     public PanCredential? Credential { get; private set; }
 
     /// <summary>WebView2 用户数据目录：固定位置复用缓存，显著加快二次加载。</summary>
@@ -141,36 +145,46 @@ public partial class PanLoginWindow : FluentWindow
 
                         var cookies = await ReadAllCookiesAsync(web);
                         var lsJson = await ReadLocalStorageAsync(web);
+                        var currentNames = new HashSet<string>(
+                            cookies.Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
 
-                        // 信号①：登录标志 Cookie
-                        //   优先用站点精确名单；没有则用宽松凭据关键词兜底
-                        //   （如 BDUSS 含 buss、__puus 含 puus、各种 token/session/user 等）
-                        var hit = _loginHints.FirstOrDefault(h =>
+                        // ① 首轮：只记录未登录基线，绝不做判定。
+                        //    这样未登录时就存在的设备 Cookie（如夸克 __puus）永远不会被当成登录凭证。
+                        if (_baselineCookieNames is null)
                         {
-                            var c = cookies.FirstOrDefault(x =>
-                                string.Equals(x.Name, h, StringComparison.OrdinalIgnoreCase));
-                            return c is not null
-                                   && !string.IsNullOrWhiteSpace(c.Value)
-                                   && c.Value.Length >= 4;
-                        });
-                        if (string.IsNullOrEmpty(hit))
-                        {
-                            hit = cookies.FirstOrDefault(c =>
-                                !string.IsNullOrWhiteSpace(c.Value)
-                                && c.Value.Length >= 6
-                                && CredentialKeyRegex.IsMatch(c.Name))?.Name;
+                            _baselineCookieNames = currentNames;
+                            _baselineUrl = source;
+                            AppendDiag($"建立未登录基线：Cookie {currentNames.Count} 个 [{string.Join(",", currentNames.Take(12))}] URL={source}");
+                            StatusText.Text = "已记录初始状态，请在此页面完成登录（登录后再点保存，或等自动识别）";
+                            return false;
                         }
 
-                        // 信号②：页面 URL 已进入网盘主界面（不再停留在登录页）
-                        var urlLoggedIn = LooksLoggedIn(source);
+                        // ② 计算"相对基线新增"的 Cookie（长度≥6 且名字是凭据相关）
+                        var newCookies = cookies.Where(c =>
+                            !_baselineCookieNames.Contains(c.Name)
+                            && !string.IsNullOrWhiteSpace(c.Value)
+                            && c.Value.Length >= 6).ToList();
 
-                        // 信号③：localStorage 出现凭据类内容
+                        // 新增 Cookie 中命中站点精确名单，或缺省时用宽松凭据关键词
+                        var hit = newCookies.FirstOrDefault(c =>
+                            _loginHints.Any(h => string.Equals(h, c.Name, StringComparison.OrdinalIgnoreCase)))?.Name;
+                        if (string.IsNullOrEmpty(hit))
+                        {
+                            hit = newCookies.FirstOrDefault(c =>
+                                CredentialKeyRegex.IsMatch(c.Name))?.Name;
+                        }
+
+                        // ③ URL 从登录页跳转到了网盘主界面（且确实发生了变化）
+                        var urlChanged = !string.Equals(source, _baselineUrl, StringComparison.OrdinalIgnoreCase);
+                        var urlLoggedIn = urlChanged && LooksLoggedIn(source);
+
+                        // ④ localStorage 出现凭据类内容（相对更早，用长度粗略判定）
                         var lsLoggedIn = !string.IsNullOrWhiteSpace(lsJson) && lsJson.Length > 40;
 
                         if (!string.IsNullOrEmpty(hit) || urlLoggedIn || lsLoggedIn)
                         {
-                            var reason = !string.IsNullOrEmpty(hit) ? $"登录 Cookie「{hit}」"
-                                : urlLoggedIn ? "已进入网盘主界面" : "本地凭据";
+                            var reason = !string.IsNullOrEmpty(hit) ? $"新增登录 Cookie「{hit}」"
+                                : urlLoggedIn ? "页面已跳转到网盘主界面" : "本地凭据";
                             AppendDiag($"判定登录成功（{reason}）→ 自动保存");
                             StatusText.Text = $"检测到登录成功（{reason}），正在保存…";
                             await SaveCredentialAsync(web, auto: true);
@@ -180,11 +194,12 @@ public partial class PanLoginWindow : FluentWindow
                         // 未命中：诊断写入日志框（每 5 轮记一次，避免刷屏）
                         if (_diagTick++ % 5 == 0)
                         {
-                            var names = string.Join(",", cookies.Take(12).Select(c => c.Name));
+                            var added = string.Join(",", newCookies.Select(c => c.Name));
                             var lsKeys = await ReadLocalStorageKeysAsync(web);
                             AppendDiag($"等待登录 | URL={source}");
-                            AppendDiag($"  Cookie {cookies.Count} 个: [{names}]");
-                            AppendDiag($"  localStorage 键: [{lsKeys}]  凭据信号: cookie={hit ?? "无"} url={urlLoggedIn} ls={lsLoggedIn}");
+                            AppendDiag($"  Cookie 总数 {cookies.Count}，相对基线新增: [{added}]");
+                            AppendDiag($"  基线 {_baselineCookieNames.Count} 个  凭据信号: cookie={hit ?? "无"} url变化={urlChanged} ls={lsLoggedIn}");
+                            AppendDiag($"  localStorage 键: [{lsKeys}]");
                         }
                         StatusText.Text = $"等待登录… 已读到 Cookie {cookies.Count} 个（详见下方诊断日志）";
                         return false;
@@ -300,8 +315,8 @@ public partial class PanLoginWindow : FluentWindow
     }
 
     /// <summary>
-    /// 按多个 URI（根域 + 当前页）读取 Cookie 并按 Name 去重，
-    /// 解决只按当前页 URI 读取时漏掉父域/根域登录 Cookie 的问题。
+    /// 只按当前登录站点域名读取 Cookie（当前页 + 该站主域/host），
+    /// 绝不读取其它网盘域的 Cookie，避免共享 WebView2 目录下的跨站 Cookie 串味误判。
     /// </summary>
     private static async Task<List<CoreWebView2Cookie>> ReadAllCookiesAsync(CoreWebView2 web)
     {
@@ -310,20 +325,19 @@ public partial class PanLoginWindow : FluentWindow
         var source = web.Source;
         if (!string.IsNullOrEmpty(source))
         {
-            uris.Add(source);
-            try
+            // 只取当前实际页面所在域，跨站（如百度 cookie 出现在夸克窗口）一律忽略
+            if (Uri.TryCreate(source, UriKind.Absolute, out var srcUri)
+                && !string.IsNullOrWhiteSpace(srcUri.Host))
             {
-                var host = new Uri(source).Host;
-                // 取主域（如 pan.baidu.com -> baidu.com），覆盖父域 cookie
-                var parts = host.Split('.');
+                uris.Add(source);
+                uris.Add("https://" + srcUri.Host + "/");
+                var parts = srcUri.Host.Split('.');
                 if (parts.Length >= 2)
                 {
                     var root = string.Join(".", parts[^2], parts[^1]);
                     uris.Add("https://" + root + "/");
-                    uris.Add("https://" + host + "/");
                 }
             }
-            catch { /* 忽略 URI 解析异常 */ }
         }
 
         foreach (var uri in uris.Distinct())
