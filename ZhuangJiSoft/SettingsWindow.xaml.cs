@@ -24,6 +24,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
     public const int ModulesPanel = 1;
     public const int DataPanel = 2;
     public const int AboutPanel = 3;
+    public const int HelpPanel = 4;
 
     /// <summary>打开设置时显示的面板（首页「＋」卡片会传 ModulesPanel）</summary>
     public int InitialPanel { get; set; } = ModulesPanel;
@@ -33,6 +34,9 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
 
     /// <summary>数据管理：是否清空该模块数据</summary>
     public ObservableCollection<ModuleEntry> Modules { get; } = new();
+
+    /// <summary>使用说明：按模块自动生成的文档列表</summary>
+    public ObservableCollection<HelpService.Doc> HelpDocs { get; } = new();
 
     private bool _syncing;
     private bool _busy;
@@ -59,8 +63,33 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         SyncMoveState();
         VersionText.Text = $"版本 {UpdateService.CurrentVersionText}";
 
+        foreach (var doc in HelpService.BuildList())
+        {
+            HelpDocs.Add(doc);
+        }
+
         SetNav(InitialPanel);
         ShowPanel(InitialPanel);
+
+        if (HelpDocs.Count > 0 && HelpModuleList.SelectedIndex < 0)
+        {
+            HelpModuleList.SelectedIndex = 0;
+        }
+    }
+
+    private void HelpModule_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (HelpModuleList.SelectedItem is not HelpService.Doc doc)
+        {
+            HelpViewer.Document = HelpRenderer.Render(null);
+            return;
+        }
+        HelpViewer.Document = HelpRenderer.Render(doc.Markdown);
+    }
+
+    private void OpenHelp_Click(object sender, RoutedEventArgs e)
+    {
+        NavHelp.IsChecked = true;
     }
 
     private static ModuleEntry MakeEntry(ModuleInfo module, bool isChecked) => new()
@@ -192,6 +221,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         NavModules.IsChecked = idx == ModulesPanel;
         NavData.IsChecked = idx == DataPanel;
         NavAbout.IsChecked = idx == AboutPanel;
+        NavHelp.IsChecked = idx == HelpPanel;
     }
 
     private void Nav_Checked(object sender, RoutedEventArgs e)
@@ -213,6 +243,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         PanelModules.Visibility = idx == ModulesPanel ? Visibility.Visible : Visibility.Collapsed;
         PanelData.Visibility = idx == DataPanel ? Visibility.Visible : Visibility.Collapsed;
         PanelAbout.Visibility = idx == AboutPanel ? Visibility.Visible : Visibility.Collapsed;
+        PanelHelp.Visibility = idx == HelpPanel ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void Clear_Click(object sender, RoutedEventArgs e)

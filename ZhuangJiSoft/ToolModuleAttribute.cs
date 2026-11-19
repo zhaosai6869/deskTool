@@ -5,10 +5,11 @@ namespace DeskApp;
 /// <summary>
 /// 模块声明特性：标在模块的 View（UserControl）类上。
 ///
-/// 以后新增模块只需两步：
+/// 以后新增模块只需三步：
 ///   1) 新建 XxxView.xaml / .xaml.cs（构造函数里自行设置 DataContext）；
-///   2) 在 View 类上方加一行 [ToolModule(...)]。
-/// 首页卡片、设置里的「模块管理」、「数据管理」会自动出现该模块，无需再改任何列表。
+///   2) 在 View 类上方加一行 [ToolModule(...)]；
+///   3) 在 Docs/Help/ 下新增一个「模块key.md」使用说明（构建时自动嵌入）。
+/// 首页卡片、设置里的「模块管理」「数据管理」「使用说明」会自动出现该模块，无需再改任何列表。
 ///
 /// ViewModel 若有无参 public void Load()，每次进入页面时会被自动调用（可选）。
 /// </summary>

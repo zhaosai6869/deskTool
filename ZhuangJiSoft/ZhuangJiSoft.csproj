@@ -33,4 +33,10 @@
     </None>
   </ItemGroup>
 
+  <!-- 使用说明：Docs/Help/{模块key}.md 嵌入程序集，随 ModuleCatalog 自动发现，
+       新增模块只需补一个同名 md 文件即可出现在设置→使用说明，无需改代码 -->
+  <ItemGroup>
+    <EmbeddedResource Include="Docs\Help\*.md" />
+  </ItemGroup>
+
 </Project>

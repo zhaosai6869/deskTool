@@ -73,6 +73,14 @@
                                        Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
                         </StackPanel>
                     </RadioButton>
+                    <RadioButton x:Name="NavHelp" Style="{StaticResource NavRadio}" Tag="4" Checked="Nav_Checked">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <ui:SymbolIcon Symbol="Question24" FontSize="17" Margin="0,0,12,0"
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                            <TextBlock Text="使用说明" FontSize="13" VerticalAlignment="Center"
+                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                        </StackPanel>
+                    </RadioButton>
                     <RadioButton x:Name="NavAbout" Style="{StaticResource NavRadio}" Tag="3" Checked="Nav_Checked">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <ui:SymbolIcon Symbol="Info24" FontSize="17" Margin="0,0,12,0"
@@ -221,6 +229,82 @@
                     </StackPanel>
                 </Grid>
 
+                <!-- 使用说明：左侧模块列表 + 右侧 Markdown 文档 -->
+                <Grid x:Name="PanelHelp" Visibility="Collapsed" Margin="24,20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="使用说明" Style="{StaticResource PanelTitle}"/>
+                    <StackPanel Grid.Row="1">
+                        <Border Height="1" Background="#E5E9F0" Margin="0,14,0,10"/>
+                        <TextBlock Text="按模块查看操作步骤。新增模块会自动出现在左侧列表，文档放在 Docs/Help/模块key.md。"
+                                   FontSize="12" Foreground="#5A6472" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="2" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="168"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" BorderBrush="#D8DEE6" BorderThickness="1" CornerRadius="6"
+                                Background="White" Margin="0,0,10,0">
+                            <ListBox x:Name="HelpModuleList" ItemsSource="{Binding HelpDocs}"
+                                     SelectionChanged="HelpModule_SelectionChanged"
+                                     Background="Transparent" BorderThickness="0"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     Padding="4,6">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Setter Property="Padding" Value="8,7"/>
+                                        <Setter Property="Margin" Value="0,1"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <Border x:Name="Bd" CornerRadius="5" Padding="{TemplateBinding Padding}"
+                                                            Background="Transparent">
+                                                        <ContentPresenter VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter TargetName="Bd" Property="Background" Value="#E8F2FD"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="Bd" Property="Background" Value="#F2F6FB"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Icon}" FontSize="15" Margin="0,0,8,0"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Name}" FontSize="12" Foreground="#1F1F1F"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+
+                        <Border Grid.Column="1" BorderBrush="#D8DEE6" BorderThickness="1" CornerRadius="6"
+                                Background="White">
+                            <FlowDocumentScrollViewer x:Name="HelpViewer"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      IsSelectionEnabled="True"/>
+                        </Border>
+                    </Grid>
+                </Grid>
+
                 <!-- 关于 / 在线更新 -->
                 <Grid x:Name="PanelAbout" Visibility="Collapsed" Margin="24,20">
                     <Grid.RowDefinitions>
@@ -245,6 +329,9 @@
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,16,0,0">
+                        <ui:Button Content="查看使用说明" Appearance="Secondary"
+                                   Style="{StaticResource ActionButton}"
+                                   Click="OpenHelp_Click" Margin="0,0,12,0"/>
                         <ui:Button x:Name="CheckUpdateBtn" Content="检查更新" Appearance="Secondary"
                                    Style="{StaticResource ActionButton}"
                                    Click="CheckUpdate_Click"/>
