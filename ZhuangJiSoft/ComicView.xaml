@@ -44,7 +44,7 @@
             </Setter>
         </Style>
 
-        <!-- 网站快捷入口小按钮 -->
+        <!-- 网站快捷入口小按钮（只读，固定 8 家） -->
         <Style x:Key="SiteChipButton" TargetType="Button">
             <Setter Property="Height" Value="27"/>
             <Setter Property="Padding" Value="11,0"/>
@@ -100,23 +100,22 @@
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Text="漫画下载" FontSize="19" FontWeight="Bold"
                        Foreground="#1F1F1F" VerticalAlignment="Center" Margin="0,0,12,0"/>
-            <TextBlock Grid.Column="1" Text="粘贴目录页网址，通用规则抓图打包 CBZ / PDF" FontSize="12"
+            <TextBlock Grid.Column="1" Text="按站点独立解析，抓图打包 CBZ / PDF" FontSize="12"
                        Foreground="#5A6472" VerticalAlignment="Center"/>
             <TextBlock Grid.Column="2" Text="{Binding BookTitle}" FontSize="12"
                        Foreground="#0F6CBD" VerticalAlignment="Center" HorizontalAlignment="Right"
                        MaxWidth="260" TextTrimming="CharacterEllipsis"/>
         </Grid>
 
-        <!-- 漫画网站快捷入口：点网站名用系统浏览器打开，支持增删/恢复默认 -->
+        <!-- 固定 8 家站点入口：只读，点网站名用系统浏览器打开 -->
         <Border Grid.Row="1" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
                 CornerRadius="6" Padding="10,7" Margin="0,0,0,6">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="漫画网站" Style="{StaticResource FieldLabel}"
+                <TextBlock Grid.Column="0" Text="支持站点" Style="{StaticResource FieldLabel}"
                            Margin="0,0,10,0" VerticalAlignment="Center"/>
                 <ItemsControl Grid.Column="1" ItemsSource="{Binding Sites}" VerticalAlignment="Center">
                     <ItemsControl.ItemsPanel>
@@ -132,12 +131,6 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
-                    <ui:Button Content="添加" Style="{StaticResource ActionButton}" Height="28" Padding="10,0"
-                               Click="AddSite_Click" ToolTip="添加漫画网站"/>
-                    <ui:Button Content="管理" Style="{StaticResource ActionButton}" Height="28" Padding="10,0"
-                               Margin="6,0,0,0" Click="ManageSites_Click" ToolTip="编辑或删除漫画网站"/>
-                </StackPanel>
             </Grid>
         </Border>
 
@@ -160,24 +153,18 @@
                        Height="32" Padding="12,0" Margin="8,0,0,0" Click="Cancel_Click"/>
         </Grid>
 
-        <!-- 手动校正 + 导出格式 -->
+        <!-- 当前站点说明 + 导出格式 -->
         <Border Grid.Row="3" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
                 CornerRadius="6" Padding="10,6" Margin="0,0,0,6">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="章节选择器" Style="{StaticResource FieldLabel}" Margin="0,0,6,0"/>
-                <TextBox Grid.Column="1" Style="{StaticResource Input}"
-                         Text="{Binding ChapterSelector, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                         ToolTip="识别不准时填，如 a.chapter 或 #chapter-list a"/>
-                <TextBlock Grid.Column="2" Text="图片选择器" Style="{StaticResource FieldLabel}" Margin="12,0,6,0"/>
-                <TextBox Grid.Column="3" Style="{StaticResource Input}"
-                         Text="{Binding ImageSelector, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                         ToolTip="图片抓不到时填，如 #content img 或 .chapter-content img"/>
-                <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                <TextBlock Grid.Column="0" Text="{Binding SiteHint}" FontSize="12" Foreground="#5A6472"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           ToolTip="{Binding SiteHint}"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
                     <CheckBox Content="CBZ" IsChecked="{Binding ExportCbz, Mode=TwoWay}"
                               Style="{StaticResource ModuleCheckBox}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <CheckBox Content="PDF" IsChecked="{Binding ExportPdf, Mode=TwoWay}"

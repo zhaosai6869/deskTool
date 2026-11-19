@@ -119,6 +119,85 @@ public static class ComicClient
         return (false, string.Join("；", errors), 0);
     }
 
+    /// <summary>抓取任意文本资源（JSON / 纯文本），强制按 UTF-8 解码。</summary>
+    public static Task<string> GetStringAsync(string url, string referer, ComicConfig config,
+        CancellationToken ct, params (string Name, string Value)[] headers)
+    {
+        return SendTextAsync(() =>
+        {
+            var req = new HttpRequestMessage(HttpMethod.Get, url);
+            req.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
+            req.Headers.TryAddWithoutValidation("Accept", "application/json,text/plain,*/*");
+            req.Headers.TryAddWithoutValidation("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
+            if (!string.IsNullOrWhiteSpace(referer))
+            {
+                req.Headers.TryAddWithoutValidation("Referer", referer);
+            }
+            foreach (var (name, value) in headers)
+            {
+                req.Headers.TryAddWithoutValidation(name, value);
+            }
+            return req;
+        }, config, ct);
+    }
+
+    /// <summary>提交 application/x-www-form-urlencoded 表单，返回 UTF-8 文本（用于站点接口）。</summary>
+    public static Task<string> PostFormAsync(string url, string referer, string form,
+        ComicConfig config, CancellationToken ct, params (string Name, string Value)[] headers)
+    {
+        return SendTextAsync(() =>
+        {
+            var req = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = new StringContent(form, Encoding.UTF8, "application/x-www-form-urlencoded")
+            };
+            req.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
+            req.Headers.TryAddWithoutValidation("Accept", "application/json,text/plain,*/*");
+            req.Headers.TryAddWithoutValidation("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
+            if (!string.IsNullOrWhiteSpace(referer))
+            {
+                req.Headers.TryAddWithoutValidation("Referer", referer);
+            }
+            foreach (var (name, value) in headers)
+            {
+                req.Headers.TryAddWithoutValidation(name, value);
+            }
+            return req;
+        }, config, ct);
+    }
+
+    private static async Task<string> SendTextAsync(Func<HttpRequestMessage> factory,
+        ComicConfig config, CancellationToken ct)
+    {
+        var errors = new List<string>();
+        for (var attempt = 0; attempt <= config.Retries; attempt++)
+        {
+            try
+            {
+                using var req = factory();
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                linked.CancelAfter(TimeSpan.FromSeconds(config.TimeoutSeconds));
+                using var resp = await Http.SendAsync(req, HttpCompletionOption.ResponseContentRead, linked.Token);
+                var bytes = await resp.Content.ReadAsByteArrayAsync(linked.Token);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    errors.Add($"HTTP {(int)resp.StatusCode}");
+                    continue;
+                }
+                return Encoding.UTF8.GetString(bytes);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                errors.Add("超时");
+            }
+            catch (Exception ex)
+            {
+                errors.Add(ex.Message);
+            }
+        }
+        throw new InvalidOperationException("请求失败：" + string.Join("；", errors));
+    }
+
     private static async Task<(byte[] Bytes, string FinalUrl)> GetBytesAsync(
         string url, string referer, ComicConfig config, CancellationToken ct)
     {

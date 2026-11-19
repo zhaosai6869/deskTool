@@ -10,12 +10,13 @@ using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DeskApp.Models;
 using DeskApp.Utils;
+using DeskApp.Utils.ComicProviders;
 
 namespace DeskApp.ViewModels;
 
 /// <summary>
-/// 漫画下载模块：粘贴目录页网址，通用规则解析章节；勾选后逐章抓图，打包 CBZ/PDF。
-/// 不绑定任何站点；识别不准时可用 CSS 选择器校正。
+/// 漫画下载模块：按站点独立解析。
+/// 支持的站点固定为内置 8 家，每家有自己写死的解析逻辑，不再有通用启发式识别。
 /// </summary>
 public partial class ComicViewModel : ObservableObject
 {
@@ -23,13 +24,12 @@ public partial class ComicViewModel : ObservableObject
     {
         Config = ComicConfig.Load();
         DownloadDir = Config.DownloadDir;
-        ChapterSelector = Config.ChapterSelector;
-        ImageSelector = Config.ImageSelector;
         ExportCbz = true;
         ExportPdf = true;
-        foreach (var site in Config.Sites ?? [])
+
+        foreach (var p in ComicProviderFactory.All)
         {
-            Sites.Add(site);
+            Sites.Add(new ComicSite { Key = p.Key, Name = p.DisplayName, Url = p.HomeUrl });
         }
     }
 
@@ -37,15 +37,14 @@ public partial class ComicViewModel : ObservableObject
 
     public ObservableCollection<ComicChapter> Chapters { get; } = [];
 
-    /// <summary>漫画网站快捷入口。</summary>
+    /// <summary>内置固定站点入口（只读，不提供增删改）。</summary>
     public ObservableCollection<ComicSite> Sites { get; } = [];
 
     [ObservableProperty] private bool _busy;
     [ObservableProperty] private string _url = string.Empty;
-    [ObservableProperty] private string _chapterSelector = string.Empty;
-    [ObservableProperty] private string _imageSelector = string.Empty;
     [ObservableProperty] private string _bookTitle = string.Empty;
-    [ObservableProperty] private string _statusText = "粘贴漫画目录页网址，点「解析章节」开始";
+    [ObservableProperty] private string _statusText = "粘贴 8 个支持站点之一的漫画目录页网址，点「解析章节」开始";
+    [ObservableProperty] private string _siteHint = string.Empty;
     [ObservableProperty] private bool _exportCbz;
     [ObservableProperty] private bool _exportPdf;
     [ObservableProperty] private string _downloadDir = string.Empty;
@@ -55,7 +54,6 @@ public partial class ComicViewModel : ObservableObject
     [ObservableProperty] private bool _hasChapters;
 
     private CancellationTokenSource? _cts;
-    private string _pageReferer = string.Empty;
 
     /// <summary>解析目录页，提取章节列表。</summary>
     public async Task ParseAsync(Window? owner)
@@ -76,17 +74,25 @@ public partial class ComicViewModel : ObservableObject
             return;
         }
 
-        Config.ChapterSelector = ChapterSelector.Trim();
-        Config.ImageSelector = ImageSelector.Trim();
-        Config.Save();
+        var provider = ComicProviderFactory.Resolve(input);
+        if (provider is null)
+        {
+            var hosts = string.Join("、", ComicProviderFactory.All.Select(p => p.Hosts[0]));
+            SiteHint = "不支持的网址";
+            StatusText = "该网址不属于内置支持的站点";
+            MessageBox.Show(owner,
+                $"当前只支持这 8 个站点：\n{string.Join("、", ComicProviderFactory.All.Select(p => p.DisplayName))}\n\n" +
+                $"可识别的主机：{hosts}",
+                "漫画下载", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
 
         Busy = true;
-        _pageReferer = input;
+        SiteHint = $"{provider.DisplayName} · {provider.Usage}";
         try
         {
-            StatusText = "正在抓取目录页…";
-            var html = await ComicClient.GetHtmlAsync(input, Config, CancellationToken.None);
-            var result = ComicParser.ParseChapters(html, input, Config.ChapterSelector);
+            StatusText = $"正在从 {provider.DisplayName} 抓取目录页…";
+            var result = await provider.ParseChaptersAsync(input, Config, CancellationToken.None);
 
             Chapters.Clear();
             foreach (var ch in result.Chapters)
@@ -98,8 +104,7 @@ public partial class ComicViewModel : ObservableObject
                 Chapters.Add(ch);
             }
 
-            // 尝试从 <title> 推断书名
-            BookTitle = ExtractTitle(html) ?? GetHostLabel(uri);
+            BookTitle = string.IsNullOrWhiteSpace(result.BookTitle) ? provider.DisplayName : result.BookTitle;
             HasChapters = Chapters.Count > 0;
             RefreshSelectionCount();
             StatusText = result.Hint;
@@ -108,10 +113,10 @@ public partial class ComicViewModel : ObservableObject
         {
             Chapters.Clear();
             HasChapters = false;
+            RefreshSelectionCount();
             StatusText = "解析失败：" + ex.Message;
-            MessageBox.Show(owner, "解析失败：" + ex.Message +
-                "\n\n可尝试：换一个能正常访问的网址，或在「手动校正」里填章节 CSS 选择器。",
-                "漫画下载", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(owner, "解析失败：" + ex.Message + "\n\n" + provider.Usage, "漫画下载",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
         {
@@ -140,6 +145,14 @@ public partial class ComicViewModel : ObservableObject
         if (!ExportCbz && !ExportPdf)
         {
             MessageBox.Show(owner, "请至少勾选一种导出格式（CBZ 或 PDF）", "漫画下载",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var provider = ComicProviderFactory.Resolve(selected[0].Url);
+        if (provider is null)
+        {
+            MessageBox.Show(owner, "无法识别章节所属站点，请重新解析", "漫画下载",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -179,23 +192,22 @@ public partial class ComicViewModel : ObservableObject
                 ch.ImageCount = 0;
                 try
                 {
-                    var html = await ComicClient.GetHtmlAsync(ch.Url, Config, ct);
-                    var images = ComicParser.ParseImages(html, ch.Url, Config.ImageSelector);
+                    var images = await provider.FetchImagesAsync(ch.Url, Config, ct);
                     if (images.Count == 0)
                     {
-                        ch.Status = "未找到图片";
+                        ch.Status = "未找到图片（可能需登录或为付费章节）";
                         failCount++;
                     }
                     else
                     {
-                        // 下载图片到临时目录
                         var safeTitle = ComicExporter.SanitizeFileName(
-                            string.IsNullOrWhiteSpace(BookTitle) ? "comic" : BookTitle);
+                            string.IsNullOrWhiteSpace(BookTitle) ? provider.DisplayName : BookTitle);
                         var tmpDir = Path.Combine(Path.GetTempPath(), "comic_dl",
                             Guid.NewGuid().ToString("N"));
                         Directory.CreateDirectory(tmpDir);
                         try
                         {
+                            var referer = provider.RefererFor(ch.Url);
                             var imagePaths = new List<string>();
                             for (var i = 0; i < images.Count; i++)
                             {
@@ -203,7 +215,7 @@ public partial class ComicViewModel : ObservableObject
                                 var ext = GuessExt(images[i]);
                                 var imgPath = Path.Combine(tmpDir, $"{i + 1:0000}{ext}");
                                 var r = await ComicClient.DownloadImageAsync(
-                                    images[i], ch.Url, imgPath, Config, ct);
+                                    images[i], referer, imgPath, Config, ct);
                                 if (r.Ok)
                                 {
                                     imagePaths.Add(imgPath);
@@ -311,52 +323,11 @@ public partial class ComicViewModel : ObservableObject
         }
     }
 
-    /// <summary>新增或编辑站点，返回是否发生变更。</summary>
-    public bool AddOrUpdateSite(ComicSite? existing, string name, string url)
-    {
-        name = name.Trim();
-        url = url.Trim();
-        if (name.Length == 0 || url.Length == 0) return false;
-
-        if (existing is null)
-        {
-            Sites.Add(new ComicSite { Name = name, Url = url });
-        }
-        else
-        {
-            existing.Name = name;
-            existing.Url = url;
-        }
-        SaveSites();
-        return true;
-    }
-
-    public void RemoveSite(ComicSite site)
-    {
-        if (Sites.Remove(site)) SaveSites();
-    }
-
-    /// <summary>恢复内置默认站点。</summary>
-    public void ResetSites()
-    {
-        Sites.Clear();
-        foreach (var s in ComicSite.CloneDefaults()) Sites.Add(s);
-        SaveSites();
-    }
-
-    private void SaveSites()
-    {
-        Config.Sites = Sites.ToList();
-        Config.Save();
-    }
-
     public void SaveSettings()
     {
         if (string.IsNullOrWhiteSpace(DownloadDir)) DownloadDir = ComicConfig.DefaultDownloadDir;
         Config.DownloadDir = DownloadDir.Trim();
-        Config.ChapterSelector = ChapterSelector.Trim();
-        Config.ImageSelector = ImageSelector.Trim();
-        SaveSites();
+        Config.Save();
     }
 
     private static string UniquePath(string path)
@@ -378,26 +349,5 @@ public partial class ComicViewModel : ObservableObject
         var path = url.Split('?')[0].Split('#')[0];
         var ext = Path.GetExtension(path).ToLowerInvariant();
         return ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" ? ext : ".jpg";
-    }
-
-    private static string? ExtractTitle(string html)
-    {
-        var m = System.Text.RegularExpressions.Regex.Match(html,
-            @"<title>\s*(.*?)\s*</title>",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase |
-            System.Text.RegularExpressions.RegexOptions.Singleline);
-        if (!m.Success) return null;
-        var title = System.Net.WebUtility.HtmlDecode(m.Groups[1].Value.Trim());
-        // 去掉常见的站点后缀
-        title = System.Text.RegularExpressions.Regex.Replace(title,
-            @"[\s_|—-]+(?:漫画|在线阅读|免费.*?|最新章节).*$", "").Trim();
-        return title.Length is > 0 and < 80 ? title : null;
-    }
-
-    private static string GetHostLabel(Uri uri)
-    {
-        var host = uri.Host.Replace("www.", "");
-        var parts = host.Split('.');
-        return parts.Length >= 2 ? parts[^2] : host;
     }
 }

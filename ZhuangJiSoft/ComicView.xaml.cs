@@ -8,11 +8,11 @@ using DeskApp.ViewModels;
 namespace DeskApp;
 
 /// <summary>
-/// 漫画下载模块：粘贴目录页网址，通用规则抓图打包 CBZ/PDF。
-/// 不绑定任何站点；识别不准时可用 CSS 选择器校正。
+/// 漫画下载模块：按站点独立解析，抓图打包 CBZ/PDF。
+/// 支持站点固定为内置 8 家，不提供站点增删改。
 /// </summary>
 [ToolModule("comic", "漫画下载", "📚",
-    "粘贴目录页网址，通用规则抓图打包 CBZ/PDF", Order = 124)]
+    "按站点独立解析章节图片，打包 CBZ/PDF", Order = 124)]
 public partial class ComicView : UserControl
 {
     public ComicView()
@@ -104,20 +104,5 @@ public partial class ComicView : UserControl
         {
             VM.OpenSite(site, Window.GetWindow(this));
         }
-    }
-
-    private void AddSite_Click(object sender, RoutedEventArgs e)
-    {
-        var dlg = new ComicSiteDialog("添加漫画网站") { Owner = Window.GetWindow(this) };
-        if (dlg.ShowDialog() == true)
-        {
-            VM.AddOrUpdateSite(null, dlg.SiteName, dlg.SiteUrl);
-        }
-    }
-
-    private void ManageSites_Click(object sender, RoutedEventArgs e)
-    {
-        var mgr = new ComicSiteManager(VM) { Owner = Window.GetWindow(this) };
-        mgr.ShowDialog();
     }
 }
