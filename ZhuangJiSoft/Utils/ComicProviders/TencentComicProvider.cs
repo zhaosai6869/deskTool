@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using DeskApp.Utils;
 
 namespace DeskApp.Utils.ComicProviders;
 
@@ -37,11 +38,17 @@ public sealed class TencentComicProvider : ComicProviderBase
     public override Task<List<string>> ParseImagesAsync(string chapterUrl, string html,
         ComicConfig config, CancellationToken ct)
     {
-        var images = ComicHtml.Images(html, chapterUrl, ImageSelectors);
+        // 腾讯现在把图片列表加密在 var DATA + nonce 里，静态 img 标签只剩第一张预加载图。
+        // 先走 DATA 解密；失败再回退旧的 img/正则方案（兼容个别老页面）。
+        var images = TencentComicSession.ParseImages(html);
         if (images.Count == 0)
         {
-            images = ComicHtml.ImagesFromPattern(html, chapterUrl,
-                "\"url\"\\s*:\\s*\"(?<u>[^\"]+?\\.(?:jpg|jpeg|png|webp|gif))\"");
+            images = ComicHtml.Images(html, chapterUrl, ImageSelectors);
+            if (images.Count == 0)
+            {
+                images = ComicHtml.ImagesFromPattern(html, chapterUrl,
+                    "\"url\"\\s*:\\s*\"(?<u>[^\"]+?\\.(?:jpg|jpeg|png|webp|gif))\"");
+            }
         }
 
         return Task.FromResult(images);

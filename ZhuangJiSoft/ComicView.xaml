@@ -197,13 +197,16 @@
             </Grid>
         </Border>
 
-        <!-- 章节列表（固定表头 + 垂直/水平滚动条，章节多时表格自身滚动，不撑破窗口） -->
-        <DataGrid Grid.Row="4" x:Name="ChapterGrid" Style="{StaticResource AppDataGrid}"
-                  ItemsSource="{Binding Chapters}" CanUserSortColumns="True"
-                  VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
-                  ScrollViewer.CanContentScroll="True"
-                  ScrollViewer.VerticalScrollBarVisibility="Auto"
-                  ScrollViewer.HorizontalScrollBarVisibility="Auto">
+        <!-- 章节列表：外面套 Border 并限制高度，确保 DataGrid 内部滚动条真正出现（表头固定） -->
+        <Border Grid.Row="4" Margin="0,0,0,2" BorderBrush="#D8DEE6" BorderThickness="1" CornerRadius="4"
+                Background="White" ClipToBounds="True">
+            <DataGrid x:Name="ChapterGrid" Style="{StaticResource AppDataGrid}"
+                      BorderThickness="0"
+                      ItemsSource="{Binding Chapters}" CanUserSortColumns="True"
+                      VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                      ScrollViewer.CanContentScroll="True"
+                      ScrollViewer.VerticalScrollBarVisibility="Visible"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto">
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                     <EventSetter Event="PreviewMouseLeftButtonDown" Handler="Row_PreviewMouseLeftButtonDown"/>
@@ -233,7 +236,8 @@
                     </DataGridTextColumn.CellStyle>
                 </DataGridTextColumn>
             </DataGrid.Columns>
-        </DataGrid>
+            </DataGrid>
+        </Border>
 
         <!-- 勾选 / 进度 -->
         <Grid Grid.Row="5" Margin="0,8,0,6">
