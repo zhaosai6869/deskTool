@@ -14,7 +14,10 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="HeyRed.ImageSharp.Heif" Version="2.1.3" />
+    <PackageReference Include="LibHeif.Native.win-x64" Version="1.15.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.34" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
     <PackageReference Include="WPF-UI" Version="4.3.0" />
     <!-- SSH 远程：SSH/SFTP 协议栈、FTP/FTPS 协议栈、内嵌终端 WebView2 承载 xterm.js -->

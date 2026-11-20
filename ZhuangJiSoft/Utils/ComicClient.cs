@@ -5,6 +5,10 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using HeyRed.ImageSharp.Heif.Formats.Avif;
 
 namespace DeskApp.Utils;
 
@@ -76,30 +80,41 @@ public static class ComicClient
 
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 linked.CancelAfter(TimeSpan.FromSeconds(config.TimeoutSeconds));
-                using var resp = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, linked.Token);
+                using var resp = await Http.SendAsync(req, HttpCompletionOption.ResponseContentRead, linked.Token);
                 if (!resp.IsSuccessStatusCode)
                 {
                     errors.Add($"HTTP {(int)resp.StatusCode}");
                     continue;
                 }
 
-                var dir = Path.GetDirectoryName(targetPath);
-                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                var temp = targetPath + ".part";
-                await using (var src = await resp.Content.ReadAsStreamAsync(linked.Token))
-                await using (var dst = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+                var bytes = await resp.Content.ReadAsByteArrayAsync(linked.Token);
+
+                // B 漫图床返回 avif：WPF/WIC 与导出器均不支持，统一转成 JPEG。
+                // 目标扩展名由调用方按 URL 推算，avif URL 主体是 .jpg@... → 默认落到 .jpg，正好匹配。
+                if (IsAvif(bytes))
                 {
-                    await src.CopyToAsync(dst, linked.Token);
+                    try
+                    {
+                        bytes = ConvertAvifToJpeg(bytes);
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add("avif 解码失败：" + ex.Message);
+                        continue;
+                    }
                 }
 
                 // 校验图片文件头：JPEG / PNG / GIF / WEBP / BMP
-                if (!IsImage(temp))
+                if (!IsImageBytes(bytes))
                 {
-                    TryDelete(temp);
                     errors.Add("返回内容非图片");
                     continue;
                 }
 
+                var dir = Path.GetDirectoryName(targetPath);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                var temp = targetPath + ".part";
+                await File.WriteAllBytesAsync(temp, bytes, linked.Token);
                 File.Move(temp, targetPath, overwrite: true);
                 return (true, string.Empty, new FileInfo(targetPath).Length);
             }
@@ -338,21 +353,39 @@ public static class ComicClient
 
     private static bool IsImage(string path)
     {
-        try
-        {
-            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var b = new byte[12];
-            var n = fs.Read(b, 0, b.Length);
-            if (n < 3) return false;
-            if (b[0] == 0xFF && b[1] == 0xD8) return true; // JPEG
-            if (b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47) return true; // PNG
-            if (b[0] == 0x47 && b[1] == 0x49 && b[2] == 0x46) return true; // GIF
-            if (n >= 12 && b[0] == 0x52 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x46 &&
-                b[8] == 0x57 && b[9] == 0x45 && b[10] == 0x42 && b[11] == 0x50) return true; // WEBP
-            if (b[0] == 0x42 && b[1] == 0x4D) return true; // BMP
-            return false;
-        }
+        try { return IsImageBytes(File.ReadAllBytes(path)); }
         catch { return false; }
+    }
+
+    private static bool IsImageBytes(byte[] b)
+    {
+        if (b is null || b.Length < 3) return false;
+        if (b[0] == 0xFF && b[1] == 0xD8) return true; // JPEG
+        if (b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47) return true; // PNG
+        if (b[0] == 0x47 && b[1] == 0x49 && b[2] == 0x46) return true; // GIF
+        if (b.Length >= 12 && b[0] == 0x52 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x46 &&
+            b[8] == 0x57 && b[9] == 0x45 && b[10] == 0x42 && b[11] == 0x50) return true; // WEBP
+        if (b[0] == 0x42 && b[1] == 0x4D) return true; // BMP
+        return false;
+    }
+
+    /// <summary>avif 文件头：偏移 4 处为 'ftyp'，偏移 8 处为 'avif' 或 'avis'。</summary>
+    private static bool IsAvif(byte[] b)
+        => b != null && b.Length >= 12 &&
+           b[4] == (byte)'f' && b[5] == (byte)'t' && b[6] == (byte)'y' && b[7] == (byte)'p' &&
+           ((b[8] == (byte)'a' && b[9] == (byte)'v' && b[10] == (byte)'i' && b[11] == (byte)'f') ||
+            (b[8] == (byte)'a' && b[9] == (byte)'v' && b[10] == (byte)'i' && b[11] == (byte)'s'));
+
+    /// <summary>用 HeyRed(LibHeif) + ImageSharp 把 avif 解码并重编码为 JPEG。</summary>
+    private static byte[] ConvertAvifToJpeg(byte[] avif)
+    {
+        // LibHeif 原生库需确认已加载；失败会以 DllNotFoundException 抛出，由调用方转成友好提示。
+        var config = new Configuration(new AvifConfigurationModule());
+        var options = new DecoderOptions { Configuration = config };
+        using var image = Image.Load(options, avif);
+        using var ms = new MemoryStream();
+        image.Save(ms, new JpegEncoder { Quality = 92 });
+        return ms.ToArray();
     }
 
     private static void TryDelete(string path)

@@ -52,7 +52,8 @@ public partial class ComicLoginWindow : FluentWindow
             AppendDiag($"WebView2 数据目录：{WebViewDataDir}");
 
             Directory.CreateDirectory(WebViewDataDir);
-            var env = await CoreWebView2Environment.CreateAsync(userDataFolder: WebViewDataDir);
+            // 与下载时的网页会话共用同一个 WebView2 环境：登录后 cookie 直接被会话复用，无需重复登录
+            var env = await DeskApp.Utils.BiliWebSession.GetEnvironmentAsync();
             await LoginView.EnsureCoreWebView2Async(env);
 
             var web = LoginView.CoreWebView2;
