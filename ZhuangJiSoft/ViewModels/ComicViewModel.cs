@@ -25,8 +25,6 @@ public partial class ComicViewModel : ObservableObject
         Config = ComicConfig.Load();
         DownloadDir = Config.DownloadDir;
         BiliCookie = Config.BiliSessData;
-        ExportCbz = true;
-        ExportPdf = true;
 
         foreach (var p in ComicProviderFactory.All)
         {
@@ -50,8 +48,9 @@ public partial class ComicViewModel : ObservableObject
     /// <summary>哔哩哔哩漫画登录凭据（SESSDATA）。B 漫接口已关闭匿名访问，其它站点不需要。</summary>
     [ObservableProperty] private string _biliCookie = string.Empty;
 
-    [ObservableProperty] private bool _exportCbz;
-    [ObservableProperty] private bool _exportPdf;
+    /// <summary>导出格式默认值：默认只勾选 PDF（通用格式），CBZ 默认不勾。</summary>
+    [ObservableProperty] private bool _exportCbz = false;
+    [ObservableProperty] private bool _exportPdf = true;
     [ObservableProperty] private string _downloadDir = string.Empty;
     [ObservableProperty] private int _selectedCount;
     [ObservableProperty] private int _progress;

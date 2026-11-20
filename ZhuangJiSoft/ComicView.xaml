@@ -197,9 +197,13 @@
             </Grid>
         </Border>
 
-        <!-- 章节列表 -->
+        <!-- 章节列表（固定表头 + 垂直/水平滚动条，章节多时表格自身滚动，不撑破窗口） -->
         <DataGrid Grid.Row="4" x:Name="ChapterGrid" Style="{StaticResource AppDataGrid}"
-                  ItemsSource="{Binding Chapters}" CanUserSortColumns="True">
+                  ItemsSource="{Binding Chapters}" CanUserSortColumns="True"
+                  VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                  ScrollViewer.CanContentScroll="True"
+                  ScrollViewer.VerticalScrollBarVisibility="Auto"
+                  ScrollViewer.HorizontalScrollBarVisibility="Auto">
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                     <EventSetter Event="PreviewMouseLeftButtonDown" Handler="Row_PreviewMouseLeftButtonDown"/>
