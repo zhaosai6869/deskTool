@@ -65,6 +65,25 @@ public static class ComicClient
     public static async Task<(bool Ok, string Message, long Bytes)> DownloadImageAsync(
         string imageUrl, string referer, string targetPath, ComicConfig config, CancellationToken ct)
     {
+        // B 漫等站点由内嵌网页会话把已解密的明文图落到本地临时文件，
+        // 这里直接复制，不再走 HTTP（也不需要 avif 解码）。
+        if (!string.IsNullOrEmpty(imageUrl) &&
+            imageUrl.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase) &&
+            File.Exists(imageUrl))
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(targetPath);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                File.Copy(imageUrl, targetPath, overwrite: true);
+                return (true, string.Empty, new FileInfo(targetPath).Length);
+            }
+            catch (Exception ex)
+            {
+                return (false, "复制已解密图片失败：" + ex.Message, 0);
+            }
+        }
+
         var errors = new List<string>();
         for (var attempt = 0; attempt <= config.Retries; attempt++)
         {

@@ -9,9 +9,10 @@ namespace DeskApp.Utils.ComicProviders;
 
 /// <summary>
 /// 哔哩哔哩漫画：新版网页给 twirp 接口加了 x-bili-data-sn / ultra_sign 风控签名，
-/// 纯 HTTP 无法复现。改为在隐藏 WebView2 里打开官方页面，让页面自己完成签名与鉴权，
-/// 我们从 DOM 抓章节链接、从网络请求拦截带 token 的图片地址（见 BiliWebSession）。
-/// 图片为 avif 格式，下载层（ComicClient）会统一转成 JPEG 后再打包/导出。
+/// 原图（mangaup.hdslb.com + cpx）还叠加了 ECDH + Go wasm 的 DRM，纯 HTTP 无法复现。
+/// 改为在隐藏 WebView2 里打开官方页面，让页面自己完成签名、鉴权与解密：
+/// 章节读 seasonData.episodeList；图片逐页跳转后用页面 wasm 解密出的 canvas 导出 JPEG
+/// （见 BiliWebSession）。导出的是已解密的本地 JPEG，下载层直接落盘。
 /// </summary>
 public sealed class BilibiliComicProvider : ComicProviderBase
 {
@@ -70,7 +71,7 @@ public sealed class BilibiliComicProvider : ComicProviderBase
 
         var hint = result.Count == 0
             ? "B 站漫画：未识别到章节。请确认作品详情页网址正确、已扫码登录。"
-            : $"B 站漫画：{result.Count} 章（付费章节能否下载取决于账号权益）";
+            : $"B 站漫画：已读取 {result.Count} 章（含付费/锁定章节；能否下载取决于账号权益，逐章下载时才解密）";
 
         return new ComicParseResult(result, "B站漫画", hint);
     }
