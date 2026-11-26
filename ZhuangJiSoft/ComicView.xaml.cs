@@ -9,7 +9,7 @@ namespace DeskApp;
 
 /// <summary>
 /// 漫画下载模块：按站点独立解析，抓图打包 CBZ/PDF。
-/// 支持站点固定为内置 8 家，不提供站点增删改。
+/// 支持站点固定为内置 4 家，不提供站点增删改。
 /// </summary>
 [ToolModule("comic", "漫画下载", "📚",
     "按站点独立解析章节图片，打包 CBZ/PDF", Order = 124)]

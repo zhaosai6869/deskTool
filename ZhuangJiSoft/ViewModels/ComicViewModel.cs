@@ -16,7 +16,7 @@ namespace DeskApp.ViewModels;
 
 /// <summary>
 /// 漫画下载模块：按站点独立解析。
-/// 支持的站点固定为内置 8 家，每家有自己写死的解析逻辑，不再有通用启发式识别。
+/// 支持的站点固定为内置 4 家，每家有自己写死的解析逻辑，不再有通用启发式识别。
 /// </summary>
 public partial class ComicViewModel : ObservableObject
 {
@@ -42,7 +42,7 @@ public partial class ComicViewModel : ObservableObject
     [ObservableProperty] private bool _busy;
     [ObservableProperty] private string _url = string.Empty;
     [ObservableProperty] private string _bookTitle = string.Empty;
-    [ObservableProperty] private string _statusText = "粘贴 8 个支持站点之一的漫画目录页网址，点「解析章节」开始";
+    [ObservableProperty] private string _statusText = $"粘贴 {ComicProviderFactory.All.Count} 个支持站点之一的漫画目录页网址，点「解析章节」开始";
     [ObservableProperty] private string _siteHint = string.Empty;
 
     /// <summary>哔哩哔哩漫画登录凭据（SESSDATA）。B 漫接口已关闭匿名访问，其它站点不需要。</summary>
@@ -85,7 +85,7 @@ public partial class ComicViewModel : ObservableObject
             SiteHint = "不支持的网址";
             StatusText = "该网址不属于内置支持的站点";
             MessageBox.Show(owner,
-                $"当前只支持这 8 个站点：\n{string.Join("、", ComicProviderFactory.All.Select(p => p.DisplayName))}\n\n" +
+                $"当前只支持这 {ComicProviderFactory.All.Count} 个站点：\n{string.Join("、", ComicProviderFactory.All.Select(p => p.DisplayName))}\n\n" +
                 $"可识别的主机：{hosts}",
                 "漫画下载", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;

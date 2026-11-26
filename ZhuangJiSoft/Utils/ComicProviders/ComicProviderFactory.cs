@@ -5,7 +5,7 @@ using System.Linq;
 namespace DeskApp.Utils.ComicProviders;
 
 /// <summary>
-/// 内置站点注册表：固定 8 家，各自独立解析逻辑，不支持用户增删改。
+/// 内置站点注册表：固定 4 家，各自独立解析逻辑，不支持用户增删改。
 /// </summary>
 public static class ComicProviderFactory
 {
@@ -14,10 +14,6 @@ public static class ComicProviderFactory
         new BilibiliComicProvider(),
         new TencentComicProvider(),
         new KuaikanComicProvider(),
-        new DmzjComicProvider(),
-        new ManhuadbComicProvider(),
-        new CopymangaComicProvider(),
-        new WebtoonComicProvider(),
         new ZymkComicProvider()
     ];
 

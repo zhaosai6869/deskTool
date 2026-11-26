@@ -14,6 +14,8 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <!-- 快看漫画目录数据写在服务端渲染的 window.__NUXT__ 压缩 JS 里，用 Jint 在 .NET 内执行取数 -->
+    <PackageReference Include="Jint" Version="4.18.0" />
     <PackageReference Include="HeyRed.ImageSharp.Heif" Version="2.1.3" />
     <PackageReference Include="LibHeif.Native.win-x64" Version="1.15.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.34" />

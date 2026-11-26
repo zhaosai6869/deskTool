@@ -44,7 +44,7 @@
             </Setter>
         </Style>
 
-        <!-- 网站快捷入口小按钮（只读，固定 8 家） -->
+        <!-- 网站快捷入口小按钮（只读，固定 4 家） -->
         <Style x:Key="SiteChipButton" TargetType="Button">
             <Setter Property="Height" Value="27"/>
             <Setter Property="Padding" Value="11,0"/>
@@ -107,7 +107,7 @@
                        MaxWidth="260" TextTrimming="CharacterEllipsis"/>
         </Grid>
 
-        <!-- 固定 8 家站点入口：只读，点网站名用系统浏览器打开 -->
+        <!-- 固定 4 家站点入口：只读，点网站名用系统浏览器打开 -->
         <Border Grid.Row="1" Background="#F5F8FC" BorderBrush="#E5E9F0" BorderThickness="1"
                 CornerRadius="6" Padding="10,7" Margin="0,0,0,6">
             <Grid>
